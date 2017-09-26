@@ -1,22 +1,16 @@
 package com.azavea.rf.common.utils
 
-import com.typesafe.scalalogging.LazyLogging
-import geotrellis.util.{FileRangeReader, RangeReader}
-import geotrellis.spark.io.s3.util.S3RangeReader
-import geotrellis.spark.io.s3.AmazonS3Client
-import geotrellis.spark.io.http.util.HttpRangeReader
-
-import com.amazonaws.services.s3.{
-  AmazonS3URI,
-  AmazonS3Client => AWSAmazonS3Client
-}
-import com.amazonaws.auth.DefaultAWSCredentialsProviderChain
-import org.apache.http.client.utils.URLEncodedUtils
-
-import java.nio.file.Paths
+import java.net.{URI, URL}
 import java.nio.charset.Charset
-import java.net.URI
-import java.net.URL
+import java.nio.file.Paths
+
+import com.amazonaws.services.s3.{AmazonS3ClientBuilder, AmazonS3URI}
+import com.typesafe.scalalogging.LazyLogging
+import geotrellis.spark.io.http.util.HttpRangeReader
+import geotrellis.spark.io.s3.AmazonS3Client
+import geotrellis.spark.io.s3.util.S3RangeReader
+import geotrellis.util.{FileRangeReader, RangeReader}
+import org.apache.http.client.utils.URLEncodedUtils
 
 object RangeReaderUtils extends LazyLogging {
   def fromUri(uri: String): Option[RangeReader] = {
@@ -47,8 +41,7 @@ object RangeReaderUtils extends LazyLogging {
 
       case "s3" =>
         val s3Uri = new AmazonS3URI(java.net.URLDecoder.decode(uri, "UTF-8"))
-        val s3Client = new AmazonS3Client(
-          new AWSAmazonS3Client(new DefaultAWSCredentialsProviderChain))
+        val s3Client = new AmazonS3Client(AmazonS3ClientBuilder.defaultClient())
         Some(S3RangeReader(s3Uri.getBucket, s3Uri.getKey, s3Client))
 
       case scheme =>

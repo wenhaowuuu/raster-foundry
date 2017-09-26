@@ -5,9 +5,8 @@ import java.sql.Timestamp
 import java.util.UUID
 
 import cats.implicits._
-import com.amazonaws.auth.DefaultAWSCredentialsProviderChain
+import com.amazonaws.services.s3.AmazonS3ClientBuilder
 import com.amazonaws.services.s3.model.{CannedAccessControlList, ObjectMetadata}
-import com.amazonaws.services.s3.{AmazonS3Client => AWSAmazonS3Client}
 import com.azavea.rf.database.Implicits._
 import com.azavea.rf.datamodel._
 import com.lonelyplanet.akka.http.extensions.PageRequest
@@ -67,7 +66,8 @@ object OrganizationDao extends Dao[Organization] with LazyLogging {
     query.filter(id).select
 
   def createOrganization(
-      newOrg: Organization.Create): ConnectionIO[Organization] =
+      newOrg: Organization.Create
+  ): ConnectionIO[Organization] =
     create(newOrg.toOrganization(true))
 
   def update(org: Organization, id: UUID): ConnectionIO[Int] = {
@@ -86,7 +86,8 @@ object OrganizationDao extends Dao[Organization] with LazyLogging {
       organizationId: UUID,
       page: PageRequest,
       searchParams: SearchQueryParameters,
-      actingUser: User): ConnectionIO[PaginatedResponse[User.WithGroupRole]] =
+      actingUser: User
+  ): ConnectionIO[PaginatedResponse[User.WithGroupRole]] =
     for {
       organizationO <- OrganizationDao.getOrganizationById(organizationId)
       isDefaultOrg <- organizationO match {
@@ -100,7 +101,8 @@ object OrganizationDao extends Dao[Organization] with LazyLogging {
         page,
         searchParams,
         actingUser,
-        Some(fr"ORDER BY ugr.membership_status, ugr.group_role"))
+        Some(fr"ORDER BY ugr.membership_status, ugr.group_role")
+      )
       maybeSanitized = if (isDefaultOrg) {
         usersPage.copy(results = usersPage.results map { _.copy(email = "") })
       } else {
@@ -208,23 +210,23 @@ object OrganizationDao extends Dao[Organization] with LazyLogging {
       groupRole
     )
 
-    createUserGroupRole(organizationId,
-                        actingUser,
-                        subjectId,
-                        userGroupRoleCreate,
-                        platformId,
-                        false.pure[ConnectionIO])
+    createUserGroupRole(
+      organizationId,
+      actingUser,
+      subjectId,
+      userGroupRoleCreate,
+      platformId,
+      false.pure[ConnectionIO]
+    )
   }
 
   def deactivateUserRoles(
       actingUser: User,
       subjectId: String,
-      organizationId: UUID): ConnectionIO[List[UserGroupRole]] = {
-    val userGroup = UserGroupRole.UserGroup(
-      subjectId,
-      GroupType.Organization,
-      organizationId
-    )
+      organizationId: UUID
+  ): ConnectionIO[List[UserGroupRole]] = {
+    val userGroup =
+      UserGroupRole.UserGroup(subjectId, GroupType.Organization, organizationId)
     UserGroupRoleDao.deactivateUserGroupRoles(userGroup, actingUser)
   }
 
@@ -236,16 +238,19 @@ object OrganizationDao extends Dao[Organization] with LazyLogging {
     val logoByte = ApacheBase64.decodeBase64(logoBase64)
     val logoStream = new ByteArrayInputStream(logoByte)
     val md = new ObjectMetadata()
-    val s3 = new AWSAmazonS3Client(new DefaultAWSCredentialsProviderChain)
+
+    val s3 = AmazonS3ClientBuilder.defaultClient()
     val s3Client = new AmazonS3Client(s3)
 
     md.setContentType("image/png")
     md.setContentLength(logoByte.length)
 
     s3Client.putObject(dataBucket, s"${prefix}/${key}", logoStream, md)
-    s3.setObjectAcl(dataBucket,
-                    s"${prefix}/${key}",
-                    CannedAccessControlList.PublicRead)
+    s3.setObjectAcl(
+      dataBucket,
+      s"${prefix}/${key}",
+      CannedAccessControlList.PublicRead
+    )
 
     val uri = s"https://s3.amazonaws.com/${dataBucket}/${prefix}/${key}"
     val updateTime = new Timestamp(new java.util.Date().getTime)
@@ -330,7 +335,8 @@ object OrganizationDao extends Dao[Organization] with LazyLogging {
       pageRequest: PageRequest,
       searchParams: SearchQueryParameters,
       platformId: UUID,
-      user: User): ConnectionIO[PaginatedResponse[Organization]] = {
+      user: User
+  ): ConnectionIO[PaginatedResponse[Organization]] = {
     val organizationSearchBuilder = {
       OrganizationDao
         .viewFilter(user)
@@ -349,7 +355,8 @@ object OrganizationDao extends Dao[Organization] with LazyLogging {
 
   def searchOrganizations(
       user: User,
-      searchParams: SearchQueryParameters): ConnectionIO[List[Organization]] = {
+      searchParams: SearchQueryParameters
+  ): ConnectionIO[List[Organization]] = {
     OrganizationDao
       .viewFilter(user)
       .filter(searchParams)
