@@ -56,7 +56,10 @@ case class Annotation(
                 this.modifiedAt,
                 this.modifiedBy,
                 this.owner,
-                this.label,
+                this.label match {
+                  case label: String if label == "" => "Unlabeled"
+                  case label: String if label != "" => label
+                },
                 this.description,
                 this.machineGenerated,
                 this.confidence,
@@ -122,7 +125,10 @@ object Annotation {
                 properties.modifiedAt,
                 properties.modifiedBy,
                 properties.owner,
-                properties.label,
+                properties.label match {
+                  case label: String if label == "" => "Unlabeled"
+                  case label: String if label != "" => label
+                },
                 properties.description,
                 properties.machineGenerated,
                 properties.confidence,
@@ -154,7 +160,10 @@ object Annotation {
                 now, // modifiedAt
                 user.id, // modifiedBy
                 ownerId, // owner
-                label,
+                label match {
+                  case label: String if label == "" => "Unlabeled"
+                  case label: String if label != "" => label
+                },
                 description,
                 machineGenerated,
                 confidence,
@@ -172,7 +181,10 @@ object Annotation {
         def toAnnotationCreate(): Annotation.Create = {
             Annotation.Create(
                 properties.owner,
-                properties.label,
+                properties.label match {
+                  case label: String if label == "" => "Unlabeled"
+                  case label: String if label != "" => label
+                },
                 properties.description,
                 properties.machineGenerated,
                 properties.confidence,
