@@ -37,13 +37,13 @@ then
             run --rm app-frontend \
             swagger validate /opt/swagger/spec.yml
 
-        echo "Updating Scala dependencies"
-        docker-compose \
-            run --rm --no-deps api-server update
+        # echo "Updating Scala dependencies"
+        # docker-compose \
+        #     run --rm --no-deps api-server update
 
-        echo "Linting Scala source code"
-        docker-compose \
-            run --rm --no-deps api-server scapegoat
+        # echo "Linting Scala source code"
+        # docker-compose \
+        #     run --rm --no-deps api-server scapegoat
 
         echo "Preparing the database for testing"
         docker-compose \
