@@ -49,7 +49,7 @@ trait DatasourceRoutes extends Authentication
             }
           } ~
             post {
-              addDatasourcePermission(datasourceId)
+              addDatasourcePermissions(datasourceId)
             } ~
             get {
               listDatasourcePermissions(datasourceId)
@@ -156,15 +156,13 @@ trait DatasourceRoutes extends Authentication
     }
   }
 
-  def addDatasourcePermission(datasourceId: UUID): Route = authenticate { user =>
+  def addDatasourcePermissions(datasourceId: UUID): Route = authenticate { user =>
       authorizeAsync {
         DatasourceDao.query.ownedBy(user, datasourceId).exists.transact(xa).unsafeToFuture
       } {
-        entity(as[AccessControlRule.Create]) { acrCreate =>
+        entity(as[List[ObjectAccessControlRule.Create]]) { objectAcrCreateList =>
           complete {
-            AccessControlRuleDao.createWithResults(
-              acrCreate.toAccessControlRule(user, ObjectType.Datasource, datasourceId)
-            ).transact(xa).unsafeToFuture
+            DatasourceDao.addPermissions(objectAcrCreateList, datasourceId, user).transact(xa).unsafeToFuture
           }
         }
       }

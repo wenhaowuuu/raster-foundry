@@ -52,7 +52,7 @@ object DatasourceDao extends Dao[Datasource] {
       (${datasource.id}, ${datasource.createdAt}, ${datasource.createdBy}, ${datasource.modifiedAt},
       ${datasource.modifiedBy}, ${ownerId}, ${datasource.name},
       ${datasource.visibility}, ${datasource.composites},
-      ${datasource.extras}, ${datasource.bands}, ${datasource.licenseName}, ${datasource.acrs})
+      ${datasource.extras}, ${datasource.bands}, ${datasource.licenseName}, null})
     """).update.withUniqueGeneratedKeys[Datasource](
       "id", "created_at", "created_by", "modified_at", "modified_by", "owner",
       "name", "visibility", "composites", "extras", "bands", "license_name", "acrs"
@@ -72,8 +72,7 @@ object DatasourceDao extends Dao[Datasource] {
         composites = ${datasource.composites},
         extras = ${datasource.extras},
         bands = ${datasource.bands},
-        license_name = ${datasource.licenseName},
-        acrs = ${datasource.acrs}
+        license_name = ${datasource.licenseName}
       where id = ${id}
       """
     updateQuery.update.run
@@ -116,5 +115,19 @@ object DatasourceDao extends Dao[Datasource] {
       dDeleteCount <- DatasourceDao.query.filter(datasourceId).delete
     } yield { List(uDeleteCount, sDeleteCount, dDeleteCount) }
 
+  }
+
+  def addPermissions(objectAcrCreateList: List[ObjectAccessControlRule.Create], datasourceId: UUID, user: User): ConnectionIO[Int] = {
+      val now = new Timestamp((new java.util.Date()).getTime())
+      val objectAcrs = Some(objectAcrCreateList.map(_.toAccessControlRuleString))
+      val updateQuery =
+        fr"UPDATE" ++ this.tableF ++ fr"SET" ++
+        fr"""
+          modified_at = ${now},
+          modified_by = ${user.id},
+          acrs = ${objectAcrs}
+        where id = ${datasourceId}
+        """
+      updateQuery.update.run
   }
 }

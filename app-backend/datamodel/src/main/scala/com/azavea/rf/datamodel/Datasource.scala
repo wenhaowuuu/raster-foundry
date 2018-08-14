@@ -72,3 +72,33 @@ object Datasource {
     }
   }
 }
+
+@JsonCodec
+case class ObjectAccessControlRule (
+  acrs: Option[List[Option[String]]]
+)
+
+object ObjectAccessControlRule {
+  def create = Create.apply _
+
+  @JsonCodec
+  case class Create(
+    subjectType: SubjectType,
+    subjectIdO: Option[String],
+    actionType: ActionType
+  ) {
+    val subjectId: String = subjectIdO match {
+      case Some(subjectId) => subjectId
+      case _ => ""
+    }
+
+    def toAccessControlRule: ObjectAccessControlRule = ObjectAccessControlRule(
+      Some(
+        List(Some(s"${subjectType.toString};${subjectId};${actionType.toString}"))
+      )
+    )
+
+    def toAccessControlRuleString: Option[String] =
+      Some(s"${subjectType.toString};${subjectId};${actionType.toString}")
+  }
+}
