@@ -160,7 +160,7 @@ trait DatasourceRoutes extends Authentication
       authorizeAsync {
         DatasourceDao.query.ownedBy(user, datasourceId).exists.transact(xa).unsafeToFuture
       } {
-        entity(as[List[ObjectAccessControlRule.Create]]) { objectAcrCreateList =>
+        entity(as[List[ObjectAccessControlRuleCreate]]) { objectAcrCreateList =>
           complete {
             DatasourceDao.addPermissions(objectAcrCreateList, datasourceId, user).transact(xa).unsafeToFuture
           }

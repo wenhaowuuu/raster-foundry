@@ -117,7 +117,7 @@ object DatasourceDao extends Dao[Datasource] {
 
   }
 
-  def addPermissions(objectAcrCreateList: List[ObjectAccessControlRule.Create], datasourceId: UUID, user: User): ConnectionIO[Int] = {
+  def addPermissions(objectAcrCreateList: List[ObjectAccessControlRuleCreate], datasourceId: UUID, user: User): ConnectionIO[Int] = {
       val now = new Timestamp((new java.util.Date()).getTime())
       val objectAcrs = Some(objectAcrCreateList.map(_.toAccessControlRuleString))
       val updateQuery =

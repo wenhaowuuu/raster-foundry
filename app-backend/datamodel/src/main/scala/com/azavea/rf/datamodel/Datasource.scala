@@ -23,6 +23,17 @@ case class Datasource(
   acrs: Option[List[Option[String]]]
 ) {
   def toThin: Datasource.Thin = Datasource.Thin(this.bands, this.name, this.id)
+
+  def toAcrCreateList: List[ObjectAccessControlRuleCreate] = acrs match {
+    case Some(acrList) =>
+      acrList.map(acr => acrStringO match {
+        case Some(acrString) =>
+          val acrArray: List[String] = acrString.split(";").toList
+          ObjectAccessControlRuleCreate(acrArray(0), acrArray(1), acrArray(2))
+        case None => ObjectAccessControlRuleCreate()
+      })
+    case None => List(ObjectAccessControlRuleCreate())
+  }
 }
 
 object Datasource {
@@ -74,31 +85,17 @@ object Datasource {
 }
 
 @JsonCodec
-case class ObjectAccessControlRule (
-  acrs: Option[List[Option[String]]]
-)
-
-object ObjectAccessControlRule {
-  def create = Create.apply _
-
-  @JsonCodec
-  case class Create(
-    subjectType: SubjectType,
-    subjectIdO: Option[String],
-    actionType: ActionType
-  ) {
-    val subjectId: String = subjectIdO match {
-      case Some(subjectId) => subjectId
-      case _ => ""
-    }
-
-    def toAccessControlRule: ObjectAccessControlRule = ObjectAccessControlRule(
-      Some(
-        List(Some(s"${subjectType.toString};${subjectId};${actionType.toString}"))
-      )
-    )
-
-    def toAccessControlRuleString: Option[String] =
-      Some(s"${subjectType.toString};${subjectId};${actionType.toString}")
+case class ObjectAccessControlRuleCreate (
+  subjectType: SubjectType,
+  subjectIdO: Option[String],
+  actionType: ActionType
+) {
+  val subjectId: String = subjectIdO match {
+    case Some(subjectId) => subjectId
+    case _ => ""
   }
+
+  def toAccessControlRuleString: Option[String] =
+    Some(s"${subjectType.toString};${subjectId};${actionType.toString}")
+
 }
