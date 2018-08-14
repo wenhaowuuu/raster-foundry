@@ -19,7 +19,8 @@ case class Datasource(
   composites: Json,
   extras: Json,
   bands: Json,
-  licenseName: Option[String]
+  licenseName: Option[String],
+  acrs: Option[List[Option[String]]]
 ) {
   def toThin: Datasource.Thin = Datasource.Thin(this.bands, this.name, this.id)
 }
@@ -65,7 +66,8 @@ object Datasource {
         this.composites,
         this.extras,
         this.bands,
-        this.licenseName
+        this.licenseName,
+        None
       )
     }
   }

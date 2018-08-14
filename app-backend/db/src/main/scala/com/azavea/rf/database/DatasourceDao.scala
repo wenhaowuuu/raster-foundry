@@ -25,7 +25,7 @@ object DatasourceDao extends Dao[Datasource] {
   val selectF = sql"""
       SELECT
         distinct(id), created_at, created_by, modified_at, modified_by, owner,
-        name, visibility, composites, extras, bands, license_name
+        name, visibility, composites, extras, bands, license_name, acrs
       FROM
     """ ++ tableF
 
@@ -47,15 +47,15 @@ object DatasourceDao extends Dao[Datasource] {
     val ownerId = util.Ownership.checkOwner(user, Some(datasource.owner))
     (fr"INSERT INTO" ++ tableF ++ fr"""
       (id, created_at, created_by, modified_at, modified_by, owner,
-      name, visibility, composites, extras, bands, license_name)
+      name, visibility, composites, extras, bands, license_name, acrs)
     VALUES
       (${datasource.id}, ${datasource.createdAt}, ${datasource.createdBy}, ${datasource.modifiedAt},
       ${datasource.modifiedBy}, ${ownerId}, ${datasource.name},
       ${datasource.visibility}, ${datasource.composites},
-      ${datasource.extras}, ${datasource.bands}, ${datasource.licenseName})
+      ${datasource.extras}, ${datasource.bands}, ${datasource.licenseName}, ${datasource.acrs})
     """).update.withUniqueGeneratedKeys[Datasource](
       "id", "created_at", "created_by", "modified_at", "modified_by", "owner",
-      "name", "visibility", "composites", "extras", "bands", "license_name"
+      "name", "visibility", "composites", "extras", "bands", "license_name", "acrs"
     )
   }
 
@@ -65,14 +65,15 @@ object DatasourceDao extends Dao[Datasource] {
     val updateQuery =
       fr"UPDATE" ++ this.tableF ++ fr"SET" ++
       fr"""
-      modified_at = ${now},
-      modified_by = ${user.id},
-      name = ${datasource.name},
-      visibility = ${datasource.visibility},
-      composites = ${datasource.composites},
-      extras = ${datasource.extras},
-      bands = ${datasource.bands},
-      license_name = ${datasource.licenseName}
+        modified_at = ${now},
+        modified_by = ${user.id},
+        name = ${datasource.name},
+        visibility = ${datasource.visibility},
+        composites = ${datasource.composites},
+        extras = ${datasource.extras},
+        bands = ${datasource.bands},
+        license_name = ${datasource.licenseName},
+        acrs = ${datasource.acrs}
       where id = ${id}
       """
     updateQuery.update.run
