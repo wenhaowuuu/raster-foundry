@@ -9,7 +9,7 @@ import cats.data._
 import cats.implicits._
 
 import com.azavea.rf.backsplash.error._
-import com.azavea.rf.backsplash.nodes.ProjectNode
+import com.azavea.rf.backsplash.nodes.LabNode
 import com.azavea.rf.datamodel.{BandDataType, SingleBandOptions}
 import com.azavea.rf.tool.ast.MapAlgebraAST.{CogRaster, SceneRaster}
 import io.circe.Json
@@ -18,9 +18,9 @@ trait BacksplashMamlAdapter {
 
   def rfmlAst: MapAlgebraAST
 
-  def asMaml: (Expression, Option[NodeMetadata], Map[String, ProjectNode]) = {
+  def asMaml: (Expression, Option[NodeMetadata], Map[String, LabNode]) = {
 
-    def evalParams(ast: MapAlgebraAST): Map[String, ProjectNode] = {
+    def evalParams(ast: MapAlgebraAST): Map[String, LabNode] = {
       val args = ast.args.map(evalParams)
 
       ast match {
@@ -35,8 +35,8 @@ trait BacksplashMamlAdapter {
             0,
             Json.Null,
             "Up")
-          Map[String, ProjectNode](
-            s"${projId.toString}_${bandActual}" -> ProjectNode(
+          Map[String, LabNode](
+            s"${projId.toString}_${bandActual}" -> LabNode(
               projId,
               None,
               None,
@@ -45,7 +45,7 @@ trait BacksplashMamlAdapter {
               Some(singleBandOptions)))
         }
         case _ =>
-          args.foldLeft(Map.empty[String, ProjectNode])((a, b) => a ++ b)
+          args.foldLeft(Map.empty[String, LabNode])((a, b) => a ++ b)
       }
     }
 
