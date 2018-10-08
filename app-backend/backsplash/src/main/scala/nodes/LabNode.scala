@@ -19,6 +19,7 @@ import geotrellis.server.core.maml.metadata._
 import geotrellis.spark.io.postgres.PostgresAttributeStore
 import geotrellis.spark.tiling.LayoutDefinition
 import geotrellis.spark.{io => _}
+import geotrellis.proj4.CRS
 import io.circe.generic.semiauto._
 import geotrellis.vector._
 
@@ -67,7 +68,8 @@ object LabNode extends RollbarNotifier with HistogramJsonFormats {
           implicit t: Timer[IO]): (Int, Int, Int) => IO[Literal] =
         (z: Int, x: Int, y: Int) => {
           val extent = CogUtils.tmsLevels(z).mapTransform.keyToExtent(x, y)
-          val mdIO = Mosaic.getMosaicDefinitions(self.toProjectNode, extent)
+          val mdIO =
+            Mosaic.getMosaicDefinitions(self.toProjectNode, Some(extent))
           for {
             mds <- mdIO
             mbTiles <- Mosaic.getMosaicDefinitionTiles(self.toProjectNode,
@@ -97,9 +99,10 @@ object LabNode extends RollbarNotifier with HistogramJsonFormats {
     new MamlExtentReification[LabNode] {
       def kind(self: LabNode): MamlKind = MamlKind.Tile
       def extentReification(self: LabNode)(
-          implicit contextShift: Timer[IO]): (Extent, CellSize) => IO[Literal] =
+          implicit t: Timer[IO]): (Extent, CellSize) => IO[Literal] =
         (extent: Extent, cs: CellSize) => {
-          val mdIO = Mosaic.getMosaicDefinitions(self.toProjectNode, extent)
+          val mdIO =
+            Mosaic.getMosaicDefinitions(self.toProjectNode, Some(extent))
           for {
             mds <- mdIO
             tiff <- CogUtils.getTiff(mds.head.ingestLocation.toString) // TODO use mosaic def here
@@ -110,7 +113,27 @@ object LabNode extends RollbarNotifier with HistogramJsonFormats {
         }
     }
 
-  implicit val labNodeHasRasterExtents: HasRasterExtents[LabNode] = {
-    ???
-  }
+  implicit val labNodeHasRasterExtents: HasRasterExtents[LabNode] =
+    new HasRasterExtents[LabNode] {
+      def rasterExtents(self: LabNode)(
+          implicit t: Timer[IO]): IO[NEL[RasterExtent]] = {
+        val mdIO = Mosaic.getMosaicDefinitions(self.toProjectNode)
+        for {
+          mds <- mdIO
+          tiff <- CogUtils.getTiff(mds.head.ingestLocation.toString)
+        } yield {
+          NEL(tiff.rasterExtent, tiff.overviews.map(_.rasterExtent))
+        }
+      }
+
+      def crs(self: LabNode)(implicit contextShift: Timer[IO]): IO[CRS] = {
+        val mdIO = Mosaic.getMosaicDefinitions(self.toProjectNode)
+        for {
+          mds <- mdIO
+          tiff <- CogUtils.getTiff(mds.head.ingestLocation.toString)
+        } yield {
+          tiff.crs
+        }
+      }
+    }
 }

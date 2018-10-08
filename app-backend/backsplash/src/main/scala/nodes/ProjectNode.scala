@@ -49,7 +49,7 @@ object ProjectNode extends RollbarNotifier with HistogramJsonFormats {
           implicit timer: Timer[IO]): (Int, Int, Int) => IO[Literal] =
         (z: Int, x: Int, y: Int) => {
           val extent = CogUtils.tmsLevels(z).mapTransform.keyToExtent(x, y)
-          val mdIO = Mosaic.getMosaicDefinitions(self, extent)
+          val mdIO = Mosaic.getMosaicDefinitions(self, Some(extent))
           for {
             mds <- mdIO
             mbTiles <- Mosaic.getMosaicDefinitionTiles(self,
