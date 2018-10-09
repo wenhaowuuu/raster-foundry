@@ -90,11 +90,12 @@ class AnalysisService(
 
   val service: AuthedService[User, IO] =
     AuthedService {
-      case GET -> Root / UUIDWrapper(analysisId) / histogram
-            :? NodeQueryParamMatcher(node)
+      case GET -> Root / UUIDWrapper(analysisId) / histogram /
+            :? NodeQueryParamMatcher (node)
             :? VoidCacheQueryParamMatcher(void) as user => {
 
-        logger.info(s"Requesting Analysis: ${analysisId}")
+        logger.info(
+          s"Requesting Analysis histogram. Anaylsis=${analysisId}, node=${node}")
         val tr = ToolRunDao.query.filter(analysisId).select.transact(xa)
 
         val mapAlgebraAST = tr.flatMap { toolRun =>
