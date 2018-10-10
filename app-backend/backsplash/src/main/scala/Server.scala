@@ -17,29 +17,16 @@ import org.http4s.server.middleware.AutoSlash
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
-object BacksplashServer extends StreamApp[IO] {
+import javax.servlet.annotation.WebListener
+import javax.servlet.{ServletContextEvent, ServletContextListener}
+import org.http4s.servlet.syntax.ServletContextSyntax
 
-  def stream(args: List[String], requestShutdown: IO[Unit]) =
-    ServerStream.stream
-}
-
-object ServerStream {
-
-  implicit val timer: Timer[IO] = IO.timer(global)
-
+@WebListener
+class Bootstrap extends ServletContextListener with ServletContextSyntax {
   def healthCheckService = new HealthCheckService[IO].service
-  def mosaicService = new MosaicService().service
-  def analysisService = new AnalysisService().service
-
-  def stream =
-    BlazeBuilder[IO]
-      .bindHttp(8080, "0.0.0.0")
-      .mountService(
-        AutoSlash(Authenticators.queryParamAuthMiddleware(mosaicService)),
-        "/")
-      .mountService(AutoSlash(healthCheckService), "/healthcheck")
-      .mountService(
-        AutoSlash(Authenticators.queryParamAuthMiddleware(analysisService)),
-        "/tools")
-      .serve
+  override def contextInitialized(sce: ServletContextEvent) = {
+    val context = sce.getServletContext
+    context.mountService("/healthcheck", AutoSlash(healthCheckService))
+  }
+  override def contextDestroyed(sce: ServletContextEvent) = ()
 }

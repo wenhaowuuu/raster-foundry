@@ -19,3 +19,9 @@ addSbtPlugin("io.gatling" % "gatling-sbt" % "2.2.2")
 addSbtPlugin("com.typesafe.sbt" % "sbt-git" % "1.0.0")
 
 addSbtPlugin("com.geirsson" % "sbt-scalafmt" % "1.5.1")
+
+addSbtPlugin("org.jetbrains" % "sbt-structure-extractor" % "2018.2")
+
+addSbtPlugin("org.jetbrains" % "sbt-idea-shell" % "2017.2")
+
+addSbtPlugin("com.earldouglas" % "xsbt-web-plugin" % "4.0.2")

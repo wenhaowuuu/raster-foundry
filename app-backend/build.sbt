@@ -443,6 +443,7 @@ lazy val bridge = Project("bridge", file("bridge"))
 lazy val backsplash = Project("backsplash", file("backsplash"))
   .dependsOn(authentication, geotrellis, db, tool)
   .settings(commonSettings: _*)
+  .enablePlugins(TomcatPlugin)
   .settings(fork in run := true)
   .settings({
     libraryDependencies ++= Seq(
@@ -454,7 +455,10 @@ lazy val backsplash = Project("backsplash", file("backsplash"))
       Dependencies.http4sCirce,
       Dependencies.http4sDSL,
       Dependencies.http4sServer,
-      "com.azavea" %% "maml-jvm" % "0.0.15"
+      Dependencies.http4sServlet,
+      "com.azavea" %% "maml-jvm" % "0.0.15",
+      "javax.servlet" % "javax.servlet-api" % "3.0.1" % "provided",
+      "com.amazonaws" % "aws-xray-recorder-sdk-core" % "2.0.1"
     )
   })
   .settings(addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.7"))
