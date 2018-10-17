@@ -27,6 +27,11 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
     if [ "${1:-}" = "--help" ]; then
         usage
     else
+        echo "Pulling down configuration settings for test environment"
+        pushd "${DIR}/.."
+        aws s3 cp "s3://${RF_SETTINGS_BUCKET}/.env" ".env"
+        popd
+    
         if [[ -n "${AWS_ECR_ENDPOINT}" ]]; then
             echo "Building sbt container for migrations"
             GIT_COMMIT="${GIT_COMMIT}" docker-compose \
