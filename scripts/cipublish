@@ -74,7 +74,8 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
                        -e SONATYPE_PASSWORD="${SONATYPE_PASSWORD}" \
                        -e PGP_HEX_KEY="${PGP_HEX_KEY}" \
                        -e PGP_PASSPHRASE="${PGP_PASSPHRASE}" \
-                       build gitSnapshots "${project}/publishSigned"
+                       --entrypoint "/bin/bash" build -c "env"
+                       #build gitSnapshots "${project}/publishSigned"
                 done
             fi
 
