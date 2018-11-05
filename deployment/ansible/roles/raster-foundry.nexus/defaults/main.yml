@@ -1,0 +1,29 @@
+service_definition:
+  version: "3"
+  services:
+    nexus-nginx:
+      image: nginx:1.14
+      networks:
+        - nexus
+      ports:
+        - 80:80
+      volumes:
+        - "{{ service_home }}/nginx/nexus.conf:/etc/nginx/conf.d/default.conf"
+      restart: on-failure
+      logging:
+        driver: syslog
+        options:
+          tag: nexus-nginx
+    nexus-server:
+      image: sonatype/nexus3:3.13.0
+      networks:
+        - nexus
+      volumes:
+        - /var/cache/nexus:/nexus-data
+      restart: on-failure
+      logging:
+        driver: syslog
+        options:
+          tag: nexus-server
+  networks:
+    nexus:

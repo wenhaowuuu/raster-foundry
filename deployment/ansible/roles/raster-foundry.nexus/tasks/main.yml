@@ -1,13 +1,8 @@
 ---
-- name: Add azavea user to Docker group
-  user: name={{ docker_user }} group=docker
+- name: Install PyYAML
+  pip: name=pyyaml version={{ pyyaml_version }}
 
-- name: Install python dependencies
-  pip: name="{{ item.name }}" version="{{ item.version }}"
-       state=present
-  with_items: "{{ python_deps }}"
-
-- name: Create container build directories
+- name: Create container volume mount directories
   file: name={{ item.name }} state=directory
         mode=755 owner={{ item.owner | default(omit) }} group={{ item.group | default(omit) }}
         recurse=true
@@ -18,53 +13,16 @@
     - name: "{{ service_home }}/nginx"
       owner: "{{ ansible_user }}"
 
-- name: Upload nginx config file
+- name: Add Nginx config
   copy: src=nexus.conf dest="{{ service_home }}/nginx/nexus.conf"
 
-
-- name: Download Nexus data from S3
-  aws_s3: bucket="{{ nexus_data_bucket }}" object="nexus-data-backup.tar.gz"
-          mode=get dest=/tmp/nexus-data-backup.tar.gz
-          profile=default overwrite=different
-  become_user: azavea
-  register: nexus_data_updated
-
-- name: Unpack nexus data
-  unarchive: src=/tmp/nexus-data-backup.tar.gz dest=/
-             remote_src=yes
-  when: nexus_data_updated.changed
-
-- name: Configure nexus service
+- name: Configure Nexus Docker Compose service
   docker_service:
     build: yes
-    project_name: "nexus"
-    state: "present"
-    definition:
-      version: "2"
-      services:
-        nexus-nginx:
-          image: "nginx:1.14"
-          networks:
-            - "nexus"
-          ports:
-            - "80:80"
-          volumes:
-            - "{{ service_home }}/nginx/nexus.conf:/etc/nginx/conf.d/default.conf"
-          restart: on-failure
-          logging:
-            driver: syslog
-            options:
-              tag: nexus-nginx
-        nexus-server:
-          image: sonatype/nexus3:3.13.0
-          networks:
-            - "nexus"
-          volumes:
-            - /var/cache/nexus:/nexus-data
-          restart: on-failure
-          logging:
-            driver: syslog
-            options:
-              tag: nexus-server
-      networks:
-        nexus:
+    project_name: nexus
+    state: present
+    definition: "{{ service_definition }}"
+
+- include_tasks: restore-backup.yml
+  tags:
+    - restore-backup

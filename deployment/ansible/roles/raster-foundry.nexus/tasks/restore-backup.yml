@@ -1,0 +1,42 @@
+---
+- name: Install Ansible aws_s3 module dependencies
+  pip:
+    name: "{{ item }}"
+    state: latest
+  with_items:
+    - boto
+    - boto3
+    - botocore
+
+- name: Download nexus-data backup from S3
+  aws_s3: bucket="{{ nexus_data_bucket }}" object="nexus-data-backup.tar.gz"
+          mode=get dest=/tmp/nexus-data-backup.tar.gz
+          profile=default overwrite=different
+  become_user: azavea
+  register: nexus_data_updated
+
+- name: Stop Nexus
+  docker_service: project_name=nexus 
+                  definition="{{ service_definition }}" 
+                  state=absent
+
+- name: Unpack nexus-data backup
+  unarchive: src=/tmp/nexus-data-backup.tar.gz dest=/
+             remote_src=yes
+  when: nexus_data_updated.changed
+  notify:
+    - Restart Nexus
+
+- name: Start Nexus
+  docker_service: project_name=nexus 
+                  definition="{{ service_definition }}" 
+                  state=present
+
+- name: Remove Ansible aws_s3 module dependencies
+  pip:
+    name: "{{ item }}"
+    state: absent
+  with_items:
+    - boto
+    - boto3
+    - botocore
