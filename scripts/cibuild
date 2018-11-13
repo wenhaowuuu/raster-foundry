@@ -21,20 +21,39 @@ Build application for staging or release.
 "
 }
 
+function build_jar() {
+    echo "Building $1 JAR"
+    docker-compose \
+        -f "${DIR}/../docker-compose.test.yml" \
+        exec -T build \
+        ./sbt $1/assembly
+}
+
+function build_container() {
+    echo "Building $1 container image"
+    GIT_COMMIT="${GIT_COMMIT}" docker-compose \
+                -f "${DIR}/../docker-compose.yml" \
+                -f "${DIR}/../docker-compose.test.yml"\
+                build $1
+}
+
 if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
-    if [ "${1:-}" = "--help" ]; then
-        usage
-    else
+    if [ "${1:-}" = "--bootstrap" ]; then
         echo "Pulling down configuration settings for test environment"
         pushd "${DIR}/.."
         aws s3 cp "s3://${RF_SETTINGS_BUCKET}/.env" ".env"
-        
+
         aws s3 cp "s3://${RF_SETTINGS_BUCKET}/.sbtopts" - >> app-backend/.sbtopts
         sort app-backend/.sbtopts | uniq > cleaned_sbtopts
         mv cleaned_sbtopts app-backend/.sbtopts
-        
+
         popd
 
+        docker-compose \
+            -f "${DIR}/../docker-compose.test.yml" \
+            up -d build
+
+    elif [ "${1:-}" = "--static-asset-bundle" ]; then
         echo "Building static asset bundle"
         docker-compose \
             -f "${DIR}/../docker-compose.yml" \
@@ -44,18 +63,16 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
             -f "${DIR}/../docker-compose.yml" \
             -f "${DIR}/../docker-compose.test.yml" \
             run --rm app-frontend run build
-        
+    
+    elif [ "${1:-}" = "--migrations" ]; then
         echo "Building sbt container for migrations"
         GIT_COMMIT="${GIT_COMMIT}" docker-compose \
                   -f "${DIR}/../docker-compose.test.yml"\
                   build app-migrations
-                  
-        echo "Building batch JAR"
-        docker-compose \
-            -f "${DIR}/../docker-compose.test.yml" \
-            run --rm --no-deps \
-            build batch/assembly
-            
+
+    elif [ "${1:-}" = "--batch" ]; then
+        build_jar "batch"
+        
         cp "${DIR}/../app-backend/batch/target/scala-2.11/batch-assembly.jar" \
            "${DIR}/../app-tasks/jars/batch-assembly.jar"
 
@@ -65,32 +82,26 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
                   -f "${DIR}/../docker-compose.test.yml" \
                   build batch
 
-        echo "Building application JAR"
-        docker-compose \
-            -f "${DIR}/../docker-compose.test.yml" \
-            run --rm --no-deps \
-            build api/assembly
+    elif [ "${1:-}" = "--api" ]; then
+        build_jar "api"
+        build_container "nginx-api api-server"
 
-        echo "Building tile server JAR"
-        docker-compose \
-            -f "${DIR}/../docker-compose.test.yml" \
-            run --rm --no-deps \
-            build tile/assembly
+    elif [ "${1:-}" = "--tile" ]; then
+        build_jar "tile"
+        build_container "nginx-tiler tile-server"
 
-        echo "Building backsplash JAR"
+    elif [ "${1:-}" = "--backsplash" ]; then
+        build_jar "backsplash"
+        build_container "nginx-backsplash backsplash"
+
+    elif [ "${1:-}" = "--tests" ]; then
         docker-compose \
             -f "${DIR}/../docker-compose.test.yml" \
-            run --rm --no-deps \
-            build backsplash/assembly
-            
-        echo "Building container images"
-        GIT_COMMIT="${GIT_COMMIT}" docker-compose \
-                  -f "${DIR}/../docker-compose.yml" \
-                  -f "${DIR}/../docker-compose.test.yml"\
-                  build nginx-api api-server nginx-tiler tile-server nginx-backsplash backsplash
+            down
 
         echo "Running tests"
         GIT_COMMIT="${GIT_COMMIT}" ./scripts/test
         echo "All tests pass!"
+
     fi
 fi

@@ -20,9 +20,39 @@ node {
     // console.
     stage('cibuild') {
       env.RF_SETTINGS_BUCKET = 'rasterfoundry-testing-config-us-east-1'
-
+      
       wrap([$class: 'AnsiColorBuildWrapper']) {
-        sh 'scripts/cibuild'
+        sh 'scripts/cibuild --bootstrap'
+      }
+        
+      parallel staticAssetBundle: {
+        wrap([$class: 'AnsiColorBuildWrapper']) {
+          sh 'scripts/cibuild --static-asset-bundle'
+        }
+      }, migrations: {
+        wrap([$class: 'AnsiColorBuildWrapper']) {
+          sh 'scripts/cibuild --migrations'
+        }      
+      }, batch: {
+        wrap([$class: 'AnsiColorBuildWrapper']) {
+          sh 'scripts/cibuild --batch'
+        }      
+      }, api: {
+        wrap([$class: 'AnsiColorBuildWrapper']) {
+          sh 'scripts/cibuild --api'
+        }      
+      }, tile: {
+        wrap([$class: 'AnsiColorBuildWrapper']) {
+          sh 'scripts/cibuild --tile'
+        }      
+      }, backsplash: {
+        wrap([$class: 'AnsiColorBuildWrapper']) {
+          sh 'scripts/cibuild --backsplash'
+        }      
+      } 
+      
+      wrap([$class: 'AnsiColorBuildWrapper']) {
+        sh 'scripts/cibuild --tests'
       }
     }
 
