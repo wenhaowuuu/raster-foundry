@@ -76,6 +76,8 @@ services:
       context: ./app-backend
       dockerfile: Dockerfile.build
     env_file: .env
+    environment:
+       - COURSIER_CACHE=/root/.coursier-cache
     volumes:
       - ./app-backend/:/opt/raster-foundry/app-backend/
       - ./scratch/:/opt/raster-foundry/scratch/
@@ -84,5 +86,6 @@ services:
       - $HOME/.sbt:/root/.sbt
       - $HOME/.aws:/root/.aws:ro
       - $HOME/.gnupg:/root/.gnupg
+      - ./.coursier-cache:/root/.coursier-cache
     working_dir: /opt/raster-foundry/app-backend/
     entrypoint: ./sbt

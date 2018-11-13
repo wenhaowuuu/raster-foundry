@@ -20,36 +20,36 @@ node {
     // console.
     stage('cibuild') {
       env.RF_SETTINGS_BUCKET = 'rasterfoundry-testing-config-us-east-1'
-      
+
       wrap([$class: 'AnsiColorBuildWrapper']) {
         sh 'scripts/cibuild --bootstrap'
       }
-        
-      parallel staticAssetBundle: {
-        wrap([$class: 'AnsiColorBuildWrapper']) {
-          sh 'scripts/cibuild --static-asset-bundle'
+      
+      def max_concurrent_tasks = 2
+      def lock_label = "${env.BUILD_ID}-cibuild"
+           
+      def task_names = [
+        "static-asset-bundle",
+        "migrations",
+        "batch",
+        "api",
+        "tile",
+        "backsplash"
+      ]
+      
+      def tasks = [:]
+      
+      for(task in task_names) {
+        tasks["$task"] = {
+          lock(label: lock_label, quantity: max_concurrent_tasks) {
+            wrap([$class: 'AnsiColorBuildWrapper']) {
+              sh "scripts/cibuild --$task"
+            }
+          }
         }
-      }, migrations: {
-        wrap([$class: 'AnsiColorBuildWrapper']) {
-          sh 'scripts/cibuild --migrations'
-        }      
-      }, batch: {
-        wrap([$class: 'AnsiColorBuildWrapper']) {
-          sh 'scripts/cibuild --batch'
-        }      
-      }, api: {
-        wrap([$class: 'AnsiColorBuildWrapper']) {
-          sh 'scripts/cibuild --api'
-        }      
-      }, tile: {
-        wrap([$class: 'AnsiColorBuildWrapper']) {
-          sh 'scripts/cibuild --tile'
-        }      
-      }, backsplash: {
-        wrap([$class: 'AnsiColorBuildWrapper']) {
-          sh 'scripts/cibuild --backsplash'
-        }      
-      } 
+      }
+      
+      parallel tasks
       
       wrap([$class: 'AnsiColorBuildWrapper']) {
         sh 'scripts/cibuild --tests'
