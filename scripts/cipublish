@@ -12,8 +12,11 @@ function usage() {
     echo -n \
 "Usage: $(basename "$0")
 
+--jars Only publish build artifacts to Sonatype OSSRH.
+--containers Only publish container images to ECR.
+
 Publish container images to Elastic Container Registry (ECR) and
-other artifacts to S3.
+build artifacts to Sonatype OSS Repository Hosting (OSSRH).
 "
 }
 
@@ -23,107 +26,91 @@ else
     GIT_COMMIT="$(git rev-parse --short HEAD)"
 fi
 
+function publish_jars() {
+  # Sonatype OSSRH (Snapshot Repository).
+  if [ "$(whoami)" == "jenkins" ]; then
+      projects=( \
+          "api" \
+          "authentication" \
+          "batch" \
+          "bridge" \
+          "common" \
+          "datamodel" \
+          "db" \
+          "tile" \
+          "tool"
+      )
+
+      for project in "${projects[@]}"
+      do
+          echo "Publishing ${project} artifact"
+
+          docker-compose \
+             -f "${DIR}/../docker-compose.test.yml" \
+             run --rm --no-deps \
+             -e SONATYPE_USERNAME="${SONATYPE_USERNAME}" \
+             -e SONATYPE_PASSWORD="${SONATYPE_PASSWORD}" \
+             -e PGP_HEX_KEY="${PGP_HEX_KEY}" \
+             -e PGP_PASSPHRASE="${PGP_PASSPHRASE}" \
+             build gitSnapshots "${project}/publishSigned"
+      done
+  else
+      echo "ERROR: Not running as Jenkins user."
+      exit 1
+  fi
+}
+
+function publish_containers() {
+  if [[ -n "${AWS_ECR_ENDPOINT}" ]]; then
+      # Evaluate the return value of the get-login subcommand, which
+      # is a docker login command with temporarily ECR credentials.
+      eval "$(aws ecr get-login --no-include-email)"
+
+      docker tag "raster-foundry-nginx-api:${GIT_COMMIT}" \
+             "${AWS_ECR_ENDPOINT}/raster-foundry-nginx-api:${GIT_COMMIT}"
+      docker tag "raster-foundry-nginx-tiler:${GIT_COMMIT}" \
+             "${AWS_ECR_ENDPOINT}/raster-foundry-nginx-tiler:${GIT_COMMIT}"
+
+      docker tag "raster-foundry-api-server:${GIT_COMMIT}" \
+             "${AWS_ECR_ENDPOINT}/raster-foundry-api-server:${GIT_COMMIT}"
+      docker tag "raster-foundry-tile-server:${GIT_COMMIT}" \
+             "${AWS_ECR_ENDPOINT}/raster-foundry-tile-server:${GIT_COMMIT}"
+      docker tag "raster-foundry-batch:${GIT_COMMIT}" \
+             "${AWS_ECR_ENDPOINT}/raster-foundry-batch:${GIT_COMMIT}"
+      docker tag "raster-foundry-app-migrations:${GIT_COMMIT}" \
+             "${AWS_ECR_ENDPOINT}/raster-foundry-migrations:${GIT_COMMIT}"
+
+      docker tag "raster-foundry-nginx-backsplash:${GIT_COMMIT}" \
+              "${AWS_ECR_ENDPOINT}/raster-foundry-nginx-backsplash:${GIT_COMMIT}"
+      docker tag "raster-foundry-backsplash:${GIT_COMMIT}" \
+              "${AWS_ECR_ENDPOINT}/raster-foundry-backsplash:${GIT_COMMIT}"
+
+      docker push "${AWS_ECR_ENDPOINT}/raster-foundry-nginx-api:${GIT_COMMIT}"
+      docker push "${AWS_ECR_ENDPOINT}/raster-foundry-nginx-tiler:${GIT_COMMIT}"
+
+      docker push "${AWS_ECR_ENDPOINT}/raster-foundry-api-server:${GIT_COMMIT}"
+      docker push "${AWS_ECR_ENDPOINT}/raster-foundry-tile-server:${GIT_COMMIT}"
+      docker push "${AWS_ECR_ENDPOINT}/raster-foundry-batch:${GIT_COMMIT}"
+      docker push "${AWS_ECR_ENDPOINT}/raster-foundry-migrations:${GIT_COMMIT}"
+
+      docker push "${AWS_ECR_ENDPOINT}/raster-foundry-nginx-backsplash:${GIT_COMMIT}"
+      docker push "${AWS_ECR_ENDPOINT}/raster-foundry-backsplash:${GIT_COMMIT}"
+
+  else
+      echo "ERROR: No AWS_ECR_ENDPOINT variable defined."
+      exit 1
+  fi
+}
+
 if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
     if [ "${1:-}" = "--help" ]; then
         usage
+    elif [ "${1:-}" = "--jars" ]; then
+        publish_jars
+    elif [ "${1:-}" = "--containers" ]; then
+        publish_containers
     else
-        if [[ -n "${AWS_ECR_ENDPOINT}" ]]; then
-            echo "Building sbt container for migrations"
-            GIT_COMMIT="${GIT_COMMIT}" docker-compose \
-                      -f "${DIR}/../docker-compose.test.yml"\
-                      build app-migrations
-
-            echo "Building application JAR"
-            docker-compose \
-                -f "${DIR}/../docker-compose.test.yml" \
-                run --rm --no-deps \
-                build api/assembly
-
-            echo "Building tile server JAR"
-            docker-compose \
-                -f "${DIR}/../docker-compose.test.yml" \
-                run --rm --no-deps \
-                build tile/assembly
-
-            echo "Building backsplash JAR"
-            docker-compose \
-                -f "${DIR}/../docker-compose.test.yml" \
-                run --rm --no-deps \
-                build backsplash/assembly
-
-            # Build these projects as SNAPSHOT artifacts and publish to
-            # Sonatype OSSRH (Snapshot Repository).
-            if [ "$(whoami)" == "jenkins" ]; then
-                projects=( \
-                    "api" \
-                    "authentication" \
-                    "batch" \
-                    "bridge" \
-                    "common" \
-                    "datamodel" \
-                    "db" \
-                    "tile" \
-                    "tool"
-                )
-
-                for project in "${projects[@]}"
-                do
-                    echo "Publishing ${project} artifact"
-
-                    docker-compose \
-                       -f "${DIR}/../docker-compose.test.yml" \
-                       run --rm --no-deps \
-                       -e SONATYPE_USERNAME="${SONATYPE_USERNAME}" \
-                       -e SONATYPE_PASSWORD="${SONATYPE_PASSWORD}" \
-                       -e PGP_HEX_KEY="${PGP_HEX_KEY}" \
-                       -e PGP_PASSPHRASE="${PGP_PASSPHRASE}" \
-                       build gitSnapshots "${project}/publishSigned"
-                done
-            fi
-
-            echo "Building container images"
-            GIT_COMMIT="${GIT_COMMIT}" docker-compose \
-                      -f "${DIR}/../docker-compose.yml" \
-                      -f "${DIR}/../docker-compose.test.yml"\
-                      build nginx-api api-server nginx-tiler tile-server nginx-backsplash backsplash
-
-            # Evaluate the return value of the get-login subcommand, which
-            # is a docker login command with temporarily ECR credentials.
-            eval "$(aws ecr get-login --no-include-email)"
-
-            docker tag "raster-foundry-nginx-api:${GIT_COMMIT}" \
-                   "${AWS_ECR_ENDPOINT}/raster-foundry-nginx-api:${GIT_COMMIT}"
-            docker tag "raster-foundry-nginx-tiler:${GIT_COMMIT}" \
-                   "${AWS_ECR_ENDPOINT}/raster-foundry-nginx-tiler:${GIT_COMMIT}"
-
-            docker tag "raster-foundry-api-server:${GIT_COMMIT}" \
-                   "${AWS_ECR_ENDPOINT}/raster-foundry-api-server:${GIT_COMMIT}"
-            docker tag "raster-foundry-tile-server:${GIT_COMMIT}" \
-                   "${AWS_ECR_ENDPOINT}/raster-foundry-tile-server:${GIT_COMMIT}"
-            docker tag "raster-foundry-batch:${GIT_COMMIT}" \
-                   "${AWS_ECR_ENDPOINT}/raster-foundry-batch:${GIT_COMMIT}"
-            docker tag "raster-foundry-app-migrations:${GIT_COMMIT}" \
-                   "${AWS_ECR_ENDPOINT}/raster-foundry-migrations:${GIT_COMMIT}"
-
-            docker tag "raster-foundry-nginx-backsplash:${GIT_COMMIT}" \
-                    "${AWS_ECR_ENDPOINT}/raster-foundry-nginx-backsplash:${GIT_COMMIT}"
-            docker tag "raster-foundry-backsplash:${GIT_COMMIT}" \
-                    "${AWS_ECR_ENDPOINT}/raster-foundry-backsplash:${GIT_COMMIT}"
-
-            docker push "${AWS_ECR_ENDPOINT}/raster-foundry-nginx-api:${GIT_COMMIT}"
-            docker push "${AWS_ECR_ENDPOINT}/raster-foundry-nginx-tiler:${GIT_COMMIT}"
-
-            docker push "${AWS_ECR_ENDPOINT}/raster-foundry-api-server:${GIT_COMMIT}"
-            docker push "${AWS_ECR_ENDPOINT}/raster-foundry-tile-server:${GIT_COMMIT}"
-            docker push "${AWS_ECR_ENDPOINT}/raster-foundry-batch:${GIT_COMMIT}"
-            docker push "${AWS_ECR_ENDPOINT}/raster-foundry-migrations:${GIT_COMMIT}"
-
-            docker push "${AWS_ECR_ENDPOINT}/raster-foundry-nginx-backsplash:${GIT_COMMIT}"
-            docker push "${AWS_ECR_ENDPOINT}/raster-foundry-backsplash:${GIT_COMMIT}"
-
-        else
-            echo "ERROR: No AWS_ECR_ENDPOINT variable defined."
-            exit 1
-        fi
+        publish_jars
+        publish_containers
     fi
 fi

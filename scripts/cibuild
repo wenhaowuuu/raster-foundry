@@ -44,18 +44,18 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
             -f "${DIR}/../docker-compose.yml" \
             -f "${DIR}/../docker-compose.test.yml" \
             run --rm app-frontend run build
-
+        
+        echo "Building sbt container for migrations"
+        GIT_COMMIT="${GIT_COMMIT}" docker-compose \
+                  -f "${DIR}/../docker-compose.test.yml"\
+                  build app-migrations
+                  
         echo "Building batch JAR"
         docker-compose \
             -f "${DIR}/../docker-compose.test.yml" \
             run --rm --no-deps \
-            build batch/clean
-
-        docker-compose \
-            -f "${DIR}/../docker-compose.test.yml" \
-            run --rm --no-deps \
             build batch/assembly
-
+            
         cp "${DIR}/../app-backend/batch/target/scala-2.11/batch-assembly.jar" \
            "${DIR}/../app-tasks/jars/batch-assembly.jar"
 
@@ -64,6 +64,30 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
                   -f "${DIR}/../docker-compose.yml" \
                   -f "${DIR}/../docker-compose.test.yml" \
                   build batch
+
+        echo "Building application JAR"
+        docker-compose \
+            -f "${DIR}/../docker-compose.test.yml" \
+            run --rm --no-deps \
+            build api/assembly
+
+        echo "Building tile server JAR"
+        docker-compose \
+            -f "${DIR}/../docker-compose.test.yml" \
+            run --rm --no-deps \
+            build tile/assembly
+
+        echo "Building backsplash JAR"
+        docker-compose \
+            -f "${DIR}/../docker-compose.test.yml" \
+            run --rm --no-deps \
+            build backsplash/assembly
+            
+        echo "Building container images"
+        GIT_COMMIT="${GIT_COMMIT}" docker-compose \
+                  -f "${DIR}/../docker-compose.yml" \
+                  -f "${DIR}/../docker-compose.test.yml"\
+                  build nginx-api api-server nginx-tiler tile-server nginx-backsplash backsplash
 
         echo "Running tests"
         GIT_COMMIT="${GIT_COMMIT}" ./scripts/test
