@@ -26,7 +26,7 @@ function build_jar() {
     docker-compose \
         -f "${DIR}/../docker-compose.test.yml" \
         exec -T build \
-        ./sbt $1/assembly
+        ./sbt "$1/assembly"
 }
 
 function build_container() {
@@ -34,7 +34,7 @@ function build_container() {
     GIT_COMMIT="${GIT_COMMIT}" docker-compose \
                 -f "${DIR}/../docker-compose.yml" \
                 -f "${DIR}/../docker-compose.test.yml"\
-                build $1
+                build "$1"
 }
 
 if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
@@ -84,15 +84,18 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
 
     elif [ "${1:-}" = "--api" ]; then
         build_jar "api"
-        build_container "nginx-api api-server"
+        build_container "nginx-api"
+        build_container "api-server"
 
     elif [ "${1:-}" = "--tile" ]; then
         build_jar "tile"
-        build_container "nginx-tiler tile-server"
+        build_container "nginx-tiler"
+        build_container "tile-server"
 
     elif [ "${1:-}" = "--backsplash" ]; then
         build_jar "backsplash"
-        build_container "nginx-backsplash backsplash"
+        build_container "nginx-backsplash"
+        build_container "backsplash"
 
     elif [ "${1:-}" = "--tests" ]; then
         docker-compose \
