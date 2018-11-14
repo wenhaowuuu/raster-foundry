@@ -46,13 +46,13 @@ function publish_jars() {
           echo "Publishing ${project} artifact"
 
           docker-compose \
-             -f "${DIR}/../docker-compose.test.yml" \
+             -f "docker-compose.test.yml" \
              run --rm --no-deps \
              -e SONATYPE_USERNAME="${SONATYPE_USERNAME}" \
              -e SONATYPE_PASSWORD="${SONATYPE_PASSWORD}" \
              -e PGP_HEX_KEY="${PGP_HEX_KEY}" \
              -e PGP_PASSPHRASE="${PGP_PASSPHRASE}" \
-             build gitSnapshots "${project}/publishSigned"
+             build gitSnapshots "api/publishSigned"
       done
   else
       echo "ERROR: Not running as Jenkins user."
