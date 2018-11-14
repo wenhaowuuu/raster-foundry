@@ -10,7 +10,7 @@ Vagrant.configure(2) do |config|
 
   config.vm.synced_folder ".", "/vagrant", disabled: true
   config.vm.synced_folder ".", "/opt/raster-foundry", type: "rsync",
-    rsync__exclude: [".git/", "app-backend/.ensime/",
+    rsync__exclude: ["app-backend/.ensime/",
                      "app-backend/.ensime_cache/", "app-backend/.idea/",
                      "app-backend/project/.boot/", "app-backend/project/.ivy/",
                      "app-backend/project/.sbtboot/", "app-server/**/target/",

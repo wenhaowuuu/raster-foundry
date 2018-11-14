@@ -25,10 +25,7 @@ node {
         sh 'scripts/cibuild --bootstrap'
       }
       
-      def max_concurrent_tasks = 2
-      def lock_label = "${env.BUILD_ID}-cibuild"
-           
-      def task_names = [
+     def build_task_names = [
         "static-asset-bundle",
         "migrations",
         "batch",
@@ -37,19 +34,38 @@ node {
         "backsplash"
       ]
       
-      def tasks = [:]
-      
-      for(task in task_names) {
-        tasks["$task"] = {
-          lock(label: lock_label, quantity: max_concurrent_tasks) {
+      def build_tasks = [:]
+
+      // setup a latch
+      MAX_CONCURRENT = 2
+      latch = new java.util.concurrent.LinkedBlockingDeque(MAX_CONCURRENT)
+      // put a number of items into the queue to allow that number of branches to run
+      for (int i=0;i<MAX_CONCURRENT;i++) {
+        latch.offer("$i")
+      }
+
+      for (build_task_name in build_task_names) {
+        def name = "$build_task_name"
+        build_tasks[name] = {
+          def thing = null
+          // this will not allow proceeding until there is something in the queue.
+          waitUntil {
+              thing = latch.pollFirst();
+              return thing != null;
+          }
+          try {
             wrap([$class: 'AnsiColorBuildWrapper']) {
-              sh "scripts/cibuild --$task"
+              sh "scripts/cibuild --$name"
             }
+          }
+          finally {
+             // put something back into the queue to allow others to proceed
+              latch.offer(thing)
           }
         }
       }
       
-      parallel tasks
+      parallel build_tasks
       
       wrap([$class: 'AnsiColorBuildWrapper']) {
         sh 'scripts/cibuild --tests'
