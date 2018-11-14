@@ -75,52 +75,69 @@ node {
     // Publish container images built and tested during `cibuild`
     // to the private Amazon Container Registry tagged with the
     // first seven characters of the revision SHA.
-    stage('cipublish') {        
-      parallel publishJars: {
-        // Decode the `AWS_ECR_ENDPOINT` credential stored within
-        // Jenkins. In includes the Amazon ECR registry endpoint.
-        withCredentials([[$class: 'StringBinding',
-                          credentialsId: 'AWS_ECR_ENDPOINT',
-                          variable: 'AWS_ECR_ENDPOINT'], 
-                          [$class: 'StringBinding',
-                          credentialsId: 'SONATYPE_USERNAME',
-                          variable: 'SONATYPE_USERNAME'],
-                          [$class: 'StringBinding',
-                          credentialsId: 'SONATYPE_PASSWORD',
-                          variable: 'SONATYPE_PASSWORD'],
-                          [$class: 'StringBinding',
-                          credentialsId: 'PGP_HEX_KEY',
-                          variable: 'PGP_HEX_KEY'],
-                          [$class: 'StringBinding',
-                          credentialsId: 'PGP_PASSPHRASE',
-                          variable: 'PGP_PASSPHRASE']]) {
-          wrap([$class: 'AnsiColorBuildWrapper']) {
-            sh './scripts/cipublish --jars'
+    stage('cipublish') {     
+      def artifact_names = [
+          "api",
+          "authentication",
+          "batch",
+          "bridge",
+          "common",
+          "datamodel",
+          "db",
+          "tile",
+          "tool"
+        ]
+    
+      def artifact_tasks = [:]
+
+      // setup a latch
+      MAX_CONCURRENT = 2
+      latch = new java.util.concurrent.LinkedBlockingDeque(MAX_CONCURRENT)
+      // put a number of items into the queue to allow that number of branches to run
+      for (int i=0;i<MAX_CONCURRENT;i++) {
+        latch.offer("$i")
+      }
+
+      for (artifact_name in artifact_names) {
+        def name = "$artifact_name"
+        artifact_tasks[name] = {
+          def thing = null
+          // this will not allow proceeding until there is something in the queue.
+          waitUntil {
+              thing = latch.pollFirst();
+              return thing != null;
           }
-        }          
-      }, publishContainers: {
-        // Decode the `AWS_ECR_ENDPOINT` credential stored within
-        // Jenkins. In includes the Amazon ECR registry endpoint.
-        withCredentials([[$class: 'StringBinding',
-                          credentialsId: 'AWS_ECR_ENDPOINT',
-                          variable: 'AWS_ECR_ENDPOINT'], 
-                          [$class: 'StringBinding',
-                          credentialsId: 'SONATYPE_USERNAME',
-                          variable: 'SONATYPE_USERNAME'],
-                          [$class: 'StringBinding',
-                          credentialsId: 'SONATYPE_PASSWORD',
-                          variable: 'SONATYPE_PASSWORD'],
-                          [$class: 'StringBinding',
-                          credentialsId: 'PGP_HEX_KEY',
-                          variable: 'PGP_HEX_KEY'],
-                          [$class: 'StringBinding',
-                          credentialsId: 'PGP_PASSPHRASE',
-                          variable: 'PGP_PASSPHRASE']]) {
-          wrap([$class: 'AnsiColorBuildWrapper']) {
-            sh './scripts/cipublish --containers'
+          try {
+            // Decode the `AWS_ECR_ENDPOINT` credential stored within
+            // Jenkins. In includes the Amazon ECR registry endpoint.
+            withCredentials([[$class: 'StringBinding',
+                              credentialsId: 'AWS_ECR_ENDPOINT',
+                              variable: 'AWS_ECR_ENDPOINT'], 
+                              [$class: 'StringBinding',
+                              credentialsId: 'SONATYPE_USERNAME',
+                              variable: 'SONATYPE_USERNAME'],
+                              [$class: 'StringBinding',
+                              credentialsId: 'SONATYPE_PASSWORD',
+                              variable: 'SONATYPE_PASSWORD'],
+                              [$class: 'StringBinding',
+                              credentialsId: 'PGP_HEX_KEY',
+                              variable: 'PGP_HEX_KEY'],
+                              [$class: 'StringBinding',
+                              credentialsId: 'PGP_PASSPHRASE',
+                              variable: 'PGP_PASSPHRASE']]) {
+              wrap([$class: 'AnsiColorBuildWrapper']) {
+                sh "./scripts/cipublish --publish-jar $name"
+              }
+            }    
+          }
+          finally {
+             // put something back into the queue to allow others to proceed
+              latch.offer(thing)
           }
         }
       }
+    
+      parallel artifact_tasks    
     }
   } catch (err) {
     // Some exception was raised in the `try` block above. Assemble

@@ -60,6 +60,25 @@ function publish_jars() {
   fi
 }
 
+function publish_jar() {
+  # Sonatype OSSRH (Snapshot Repository).
+  if [ "$(whoami)" == "jenkins" ]; then
+    echo "Publishing ${1} artifact"
+
+    docker-compose \
+       -f "docker-compose.test.yml" \
+       run --rm --no-deps \
+       -e SONATYPE_USERNAME="${SONATYPE_USERNAME}" \
+       -e SONATYPE_PASSWORD="${SONATYPE_PASSWORD}" \
+       -e PGP_HEX_KEY="${PGP_HEX_KEY}" \
+       -e PGP_PASSPHRASE="${PGP_PASSPHRASE}" \
+       build gitSnapshots "${1}/publishSigned"
+  else
+      echo "ERROR: Not running as Jenkins user."
+      exit 1
+  fi
+}
+
 function publish_containers() {
   if [[ -n "${AWS_ECR_ENDPOINT}" ]]; then
       # Evaluate the return value of the get-login subcommand, which
@@ -109,6 +128,8 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
         publish_jars
     elif [ "${1:-}" = "--containers" ]; then
         publish_containers
+    elif [ "${1:-}" = "--publish-jar" ]; then
+        publish_jar "$2"
     else
         publish_jars
         publish_containers
