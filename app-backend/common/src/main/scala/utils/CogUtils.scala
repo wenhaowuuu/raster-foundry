@@ -37,7 +37,7 @@ object CogUtils {
   lazy val memcachedClient = KryoMemcachedClient.default
   lazy val rfCache = new CacheClient(memcachedClient)
 
-  private val TmsLevels: Array[LayoutDefinition] = {
+  val TmsLevels: Array[LayoutDefinition] = {
     val scheme = ZoomedLayoutScheme(WebMercator, 256)
     for (zoom <- 0 to 64) yield scheme.levelForZoom(zoom).layout
   }.toArray

@@ -9,6 +9,8 @@ import doobie.implicits._
 import doobie.postgres._
 import doobie.postgres.implicits._
 import doobie.postgres.circe.jsonb.implicits._
+import io.circe._
+import io.circe.generic.JsonCodec
 import geotrellis.spark.LayerId
 
 object LayerAttributeDao extends Dao[LayerAttribute] {
@@ -94,6 +96,16 @@ object LayerAttributeDao extends Dao[LayerAttribute] {
     val f1 = layerNames.toList.toNel.map(lns => in(fr"layer_name", lns))
     (fr"SELECT layer_name, zoom FROM" ++ tableF ++ whereAndOpt(f1))
       .query[(String, Int)]
+      .to[List]
+  }
+
+  def layerExtentLevels(
+      layerNames: Set[String]): ConnectionIO[List[(String, Int, Json)]] = {
+    val f1 = layerNames.toList.toNel.map(lns => in(fr"layer_name", lns))
+    (fr"SELECT layer_name, zoom, value FROM" ++ tableF ++ whereAndOpt(
+      f1,
+      Some(fr"name = 'extent'")))
+      .query[(String, Int, Json)]
       .to[List]
   }
 

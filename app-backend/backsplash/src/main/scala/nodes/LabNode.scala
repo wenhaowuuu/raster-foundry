@@ -8,6 +8,7 @@ import cats.implicits._
 import com.azavea.maml.ast.{Literal, MamlKind, RasterLit}
 import com.rasterfoundry.backsplash.io.{Mosaic, Avro}
 import com.rasterfoundry.common.RollbarNotifier
+import com.rasterfoundry.common.utils.CogUtils.TmsLevels
 import com.rasterfoundry.datamodel._
 import com.rasterfoundry.tool.ast.MapAlgebraAST
 import com.rasterfoundry.database.{ToolRunDao, LayerAttributeDao}
@@ -191,24 +192,29 @@ object LabNode extends RollbarNotifier with HistogramJsonFormats {
                     case (Some(SceneType.Avro), _) =>
                       // Avro tile function
                       LayerAttributeDao
-                        .unsafeGetAttribute(LayerId(md.sceneId.toString, 0),
-                                            "extent")
+                        .layerExtentLevels(Set(md.sceneId.toString))
                         .transact(xa)
                         .map {
-                          la =>
-                            val bbox = la.value.noSpaces
-                            NEL(
-                              RasterExtent(
-                                Extent.fromString(
-                                  bbox.substring(1, bbox.length() - 1)),
-                                // TODO: This needs needs to be done more intelligently? It's causing massive issues
-                                // Noted issues:
-                                // Tiles are timing out, and never releasing the hikari connection. This causes
-                                // connection starvation and breaks everything.
-                                CellSize(30, 30)
-                              ),
-                              Nil
-                            )
+                          extentLevels =>
+                            extentLevels.map {
+                              case (name, zoom, extent) =>
+                                val bbox = extent.noSpaces
+                                RasterExtent(
+                                  Extent.fromString(
+                                    bbox.substring(1, bbox.length() - 1)
+                                  ),
+                                  CellSize(30, 30)
+                                  // Using the actual zoom level's cell size breaks things since it takes too long
+                                  // TmsLevels(zoom).cellSize
+                                )
+                            }.toNel match {
+                              case Some(n) =>
+                                logger.info(s"RasterExtents calculated: ${n}")
+                                n
+                              case _ =>
+                                throw UningestedScenesException(
+                                  "Projects must have at least one ingested scene to be rendered")
+                            }
                         }
                     case _ =>
                       throw UnknownSceneTypeException(
