@@ -120,25 +120,21 @@ object LabNode extends RollbarNotifier with HistogramJsonFormats {
               .fromUri(ingestLocation) // OptionT[Future, TiffWithMetadata]
               .map(CogUtils.cropGeoTiffToTile(_, extent, cs, band)) // OptionT[Future, Tile]
           case (Some(SceneType.Avro), _) =>
-            IO {
-              Avro
-                .minZoomLevel(store, md.sceneId.toString, cs.resolution.toInt)
-                .map {
-                  case (layerId, re) =>
-                    S3CollectionLayerReader(store)
-                      .query[SpatialKey,
-                             MultibandTile,
-                             TileLayerMetadata[SpatialKey]](layerId)
-                      .where(Intersects(re.extent))
-                      .result
-                      .stitch
-                      .crop(re.extent)
-                } match {
-                case Success(raster) =>
-                  raster.tile.band(band)
-                case Failure(e) => throw e
+            Avro
+              .minZoomLevel(store, md.sceneId.toString, cs.resolution.toInt)
+              .map {
+                case (layerId, re) =>
+                  S3CollectionLayerReader(store)
+                    .query[SpatialKey,
+                           MultibandTile,
+                           TileLayerMetadata[SpatialKey]](layerId)
+                    .where(Intersects(re.extent))
+                    .result
+                    .stitch
+                    .crop(re.extent)
+                    .tile
+                    .band(band)
               }
-            }
           case _ =>
             throw UnknownSceneTypeException(
               s"Scene with id: ${md.sceneId} has an unallowed scene type: ${md.sceneType}")
@@ -198,17 +194,21 @@ object LabNode extends RollbarNotifier with HistogramJsonFormats {
                         .unsafeGetAttribute(LayerId(md.sceneId.toString, 0),
                                             "extent")
                         .transact(xa)
-                        .map { la =>
-                          val bbox = la.value.noSpaces
-                          NEL(RasterExtent(
+                        .map {
+                          la =>
+                            val bbox = la.value.noSpaces
+                            NEL(
+                              RasterExtent(
                                 Extent.fromString(
                                   bbox.substring(1, bbox.length() - 1)),
                                 // TODO: This needs needs to be done more intelligently? It's causing massive issues
                                 // Noted issues:
                                 // Tiles are timing out, and never releasing the hikari connection. This causes
                                 // connection starvation and breaks everything.
-                                CellSize(30, 30)),
-                              Nil)
+                                CellSize(30, 30)
+                              ),
+                              Nil
+                            )
                         }
                     case _ =>
                       throw UnknownSceneTypeException(
