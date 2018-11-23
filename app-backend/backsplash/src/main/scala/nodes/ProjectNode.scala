@@ -47,7 +47,7 @@ object ProjectNode extends RollbarNotifier with HistogramJsonFormats {
 
   implicit val projectNodeTmsReification: TmsReification[ProjectNode] =
     new TmsReification[ProjectNode] {
-      def kind(self: ProjectNode): MamlKind = MamlKind.Tile
+      def kind(self: ProjectNode): MamlKind = MamlKind.Image
 
       def tmsReification(self: ProjectNode, buffer: Int)(
           implicit contextShift: ContextShift[IO])
@@ -74,7 +74,7 @@ object ProjectNode extends RollbarNotifier with HistogramJsonFormats {
 
   implicit val extentReification: ExtentReification[ProjectNode] =
     new ExtentReification[ProjectNode] {
-      def kind(self: ProjectNode): MamlKind = MamlKind.Tile
+      def kind(self: ProjectNode): MamlKind = MamlKind.Image
 
       def extentReification(self: ProjectNode)(
           implicit contextShift: ContextShift[IO]) =

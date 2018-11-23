@@ -34,7 +34,7 @@ object Version {
   val json4s = "3.5.0"
   val kamon = "0.6.7"
   val kamonAkkaHttp = "0.6.8"
-  val maml = "0.0.15"
+  val maml = "0.0.17-66647ed"
   val nimbusJose = "0.6.0"
   val postgres = "42.1.1"
   val rollbar = "1.0.1"
