@@ -14,7 +14,7 @@ object Color extends RollbarNotifier {
       tile: Tile,
       extent: Extent,
       histogram: Histogram[Double],
-      singleBandOptions: SingleBandOptions.Params): Raster[Tile] = {
+      singleBandOptions: SingleBandOptions.Params): Raster[MultibandTile] = {
     logger.debug(s"Applying Colorings")
     val colorScheme = singleBandOptions.colorScheme
     val colorMap = (colorScheme.asArray,
@@ -40,7 +40,7 @@ object Color extends RollbarNotifier {
         throw SingleBandOptionsException(message)
       }
     }
-    Raster(tile.color(colorMap), extent)
+    Raster(MultibandTile(tile.color(colorMap)), extent)
   }
 
 }

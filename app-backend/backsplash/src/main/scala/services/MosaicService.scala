@@ -17,7 +17,7 @@ import cats.data._
 import cats.effect._
 import cats.implicits._
 import doobie.implicits._
-import geotrellis.raster.{CellSize, Tile}
+import geotrellis.raster.{CellSize, MultibandTile, Tile}
 import geotrellis.vector.{Projected, Polygon, Extent}
 import io.circe._
 import io.circe.syntax._

@@ -52,7 +52,7 @@ object Cog extends RollbarNotifier {
       row: Int,
       extent: Extent,
       singleBandOptions: SingleBandOptions.Params,
-      rawSingleBandValues: Boolean): OptionT[IO, Raster[Tile]] = {
+      rawSingleBandValues: Boolean): OptionT[IO, Raster[MultibandTile]] = {
     val tileIO = for {
       _ <- IO.pure(
         logger.debug(
@@ -75,7 +75,7 @@ object Cog extends RollbarNotifier {
         throw MetadataException("No histogram found for band")
       }
 
-      if (rawSingleBandValues) Raster(tile, extent)
+      if (rawSingleBandValues) Raster(MultibandTile(tile), extent)
       else {
         Color.colorSingleBandTile(tile, extent, histogram, singleBandOptions)
       }
@@ -83,11 +83,12 @@ object Cog extends RollbarNotifier {
     OptionT(tileIO.attempt.map(_.toOption))
   }
 
-  def fetchMultiBandCogTile(md: MosaicDefinition,
-                            zoom: Int,
-                            col: Int,
-                            row: Int,
-                            extent: Extent): OptionT[IO, Raster[Tile]] = {
+  def fetchMultiBandCogTile(
+      md: MosaicDefinition,
+      zoom: Int,
+      col: Int,
+      row: Int,
+      extent: Extent): OptionT[IO, Raster[MultibandTile]] = {
     val tileIO = for {
       _ <- IO.pure(
         logger.debug(
@@ -109,7 +110,6 @@ object Cog extends RollbarNotifier {
       val colored =
         md.colorCorrections
           .colorCorrect(subsetBands, subsetHistograms, None)
-          .color
       Raster(colored, extent).resample(256, 256)
     }
     OptionT(tileIO.attempt.map(_.toOption))
@@ -120,7 +120,7 @@ object Cog extends RollbarNotifier {
       cellSize: CellSize,
       singleBandOptions: Option[SingleBandOptions.Params],
       singleBand: Boolean,
-      mosaicDefinition: MosaicDefinition): IO[Option[Raster[Tile]]] =
+      mosaicDefinition: MosaicDefinition): IO[Option[Raster[MultibandTile]]] =
     for {
       tiff <- mosaicDefinition.ingestLocation map {
         CogUtils.fromUri(_)
@@ -147,8 +147,7 @@ object Cog extends RollbarNotifier {
         Some(
           Raster(
             mosaicDefinition.colorCorrections
-              .colorCorrect(resampled.tile, hists, None)
-              .color,
+              .colorCorrect(resampled.tile, hists, None),
             resampled.extent
           )
         )

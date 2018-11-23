@@ -89,11 +89,12 @@ object Avro extends RollbarNotifier with HistogramJsonFormats {
   // TODO: this essentially inlines a bunch of logic from LayerCache, which isn't super cool
   // it would be nice to get that logic somewhere more appropriate, especially since a lot of
   // it is grid <-> geometry math, but I'm not certain where it should go.
-  def fetchMultiBandAvroTile(md: MosaicDefinition,
-                             zoom: Int,
-                             col: Int,
-                             row: Int,
-                             extent: Extent): OptionT[IO, Raster[Tile]] = {
+  def fetchMultiBandAvroTile(
+      md: MosaicDefinition,
+      zoom: Int,
+      col: Int,
+      row: Int,
+      extent: Extent): OptionT[IO, Raster[MultibandTile]] = {
     OptionT(
       for {
         _ <- IO.pure(
@@ -126,7 +127,7 @@ object Avro extends RollbarNotifier with HistogramJsonFormats {
               val rows = mbTile.rows / resolutionDiff
               val corrected =
                 md.colorCorrections.colorCorrect(mbTile, histograms.toSeq, None)
-              Raster(corrected.color, extent).resample(256, 256)
+              Raster(corrected, extent).resample(256, 256)
             }
         }).toOption
       }
@@ -166,7 +167,7 @@ object Avro extends RollbarNotifier with HistogramJsonFormats {
       row: Int,
       extent: Extent,
       singleBandOptions: SingleBandOptions.Params,
-      rawSingleBandValues: Boolean): OptionT[IO, Raster[Tile]] = {
+      rawSingleBandValues: Boolean): OptionT[IO, Raster[MultibandTile]] = {
     OptionT(
       for {
         _ <- IO.pure(
@@ -206,7 +207,7 @@ object Avro extends RollbarNotifier with HistogramJsonFormats {
                                             extent,
                                             histogram,
                                             singleBandOptions)
-                case _ => Raster(tile, extent)
+                case _ => Raster(MultibandTile(tile), extent)
               }
             }
         }).toOption
@@ -245,7 +246,7 @@ object Avro extends RollbarNotifier with HistogramJsonFormats {
       cellSize: CellSize,
       singleBandOptions: Option[SingleBandOptions.Params],
       singleBand: Boolean,
-      mosaicDefinition: MosaicDefinition): IO[Option[Raster[Tile]]] = {
+      mosaicDefinition: MosaicDefinition): IO[Option[Raster[MultibandTile]]] = {
     val reprojectedExtent = extent.reproject(LatLng, WebMercator)
     val resampleRows = (reprojectedExtent.height / cellSize.height).toInt
     val resampleCols = (reprojectedExtent.width / cellSize.width).toInt
@@ -269,8 +270,7 @@ object Avro extends RollbarNotifier with HistogramJsonFormats {
       if (!singleBand) {
         Some(
           Raster(mosaicDefinition.colorCorrections
-                   .colorCorrect(resampled.tile, hists, None)
-                   .color,
+                   .colorCorrect(resampled.tile, hists, None),
                  extent))
       } else {
         singleBandOptions flatMap { params =>

@@ -51,7 +51,7 @@ object Mosaic extends RollbarNotifier {
   }
 
   def getMultiBandTileFromMosaic(z: Int, x: Int, y: Int, extent: Extent)(
-      md: MosaicDefinition): IO[Option[Raster[Tile]]] =
+      md: MosaicDefinition): IO[Option[Raster[MultibandTile]]] =
     md.sceneType match {
       case Some(SceneType.COG) =>
         (Cog.fetchMultiBandCogTile(md, z, x, y, extent) map { maybeResample(_) }).value
@@ -92,7 +92,7 @@ object Mosaic extends RollbarNotifier {
                                   extent: Extent,
                                   singleBandOptions: SingleBandOptions.Params,
                                   rawSingleBandValues: Boolean)(
-      md: MosaicDefinition): IO[Option[Raster[Tile]]] =
+      md: MosaicDefinition): IO[Option[Raster[MultibandTile]]] =
     md.sceneType match {
       case Some(SceneType.COG) =>
         (Cog
@@ -123,7 +123,8 @@ object Mosaic extends RollbarNotifier {
       extent: Extent,
       cellSize: CellSize,
       singleBandOptions: Option[SingleBandOptions.Params],
-      singleBand: Boolean)(md: MosaicDefinition): IO[Option[Raster[Tile]]] = {
+      singleBand: Boolean)(
+      md: MosaicDefinition): IO[Option[Raster[MultibandTile]]] = {
     md.sceneType match {
       case Some(SceneType.COG) =>
         Cog.tileForExtent(extent, cellSize, singleBandOptions, singleBand, md)
@@ -135,6 +136,7 @@ object Mosaic extends RollbarNotifier {
     }
   }
 
-  @inline def maybeResample(tile: Raster[Tile]): Raster[Tile] =
+  @inline def maybeResample(
+      tile: Raster[MultibandTile]): Raster[MultibandTile] =
     if (tile.dimensions != (256, 256)) tile.resample(256, 256) else tile
 }
