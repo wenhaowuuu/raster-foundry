@@ -71,7 +71,8 @@ class MosaicService(
                   authResult
               }
 
-            def getTileResult(project: Project): IO[Interpreted[Tile]] = {
+            def getTileResult(
+                project: Project): IO[Interpreted[MultibandTile]] = {
               val projectNode =
                 (redOverride, greenOverride, blueOverride).tupled match {
                   case Some((red: Int, green: Int, blue: Int)) =>
@@ -170,7 +171,7 @@ class MosaicService(
             def getTileResult(
                 project: Project,
                 cellSize: CellSize,
-                projectedExtent: Extent): IO[Interpreted[Tile]] = {
+                projectedExtent: Extent): IO[Interpreted[MultibandTile]] = {
               val projectNode = ProjectNode(
                 project.id,
                 redOverride,
