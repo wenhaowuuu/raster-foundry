@@ -94,12 +94,12 @@ class AnalysisService(
                   colorMap match {
                     case Some(rd) => {
                       logger.debug(s"Using Render Definition: ${rd}")
-                      Ok(tile.renderPng(rd).bytes,
+                      Ok(tile.band(0).renderPng(rd).bytes,
                          `Content-Type`(MediaType.image.png))
                     }
                     case _ => {
                       logger.debug(s"Using Default Color Ramp: Viridis")
-                      Ok(tile.renderPng(ColorRamps.Viridis).bytes,
+                      Ok(tile.band(0).renderPng(ColorRamps.Viridis).bytes,
                          `Content-Type`(MediaType.image.png))
                     }
                   }

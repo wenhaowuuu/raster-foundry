@@ -4,7 +4,7 @@ import com.azavea.maml.error.Interpreted
 import com.azavea.maml.eval.BufferingInterpreter
 import com.rasterfoundry.authentication.Authentication
 import com.rasterfoundry.backsplash.error._
-import com.rasterfoundry.backsplash.io.Histogram
+import com.rasterfoundry.backsplash.io.{Histogram, MosaicDefinitionRasterSource}
 import com.rasterfoundry.backsplash.nodes.ProjectNode
 import com.rasterfoundry.backsplash.parameters.Parameters._
 import com.rasterfoundry.common.RollbarNotifier
@@ -23,7 +23,6 @@ import io.circe._
 import io.circe.syntax._
 import io.circe.parser._
 import geotrellis.server._
-import geotrellis.server.cog.util.CogUtils
 import org.http4s._
 import org.http4s.dsl._
 import org.http4s.dsl.io._
@@ -185,7 +184,7 @@ class MosaicService(
             }
             for {
               authed <- authorizationF
-              cellSize = CogUtils.tmsLevels(zoom).cellSize
+              cellSize = MosaicDefinitionRasterSource.tmsLevels(zoom).cellSize
               project <- ProjectDao.unsafeGetProjectById(projectId).transact(xa)
               result <- getTileResult(project, cellSize, extent)
               resp <- result match {

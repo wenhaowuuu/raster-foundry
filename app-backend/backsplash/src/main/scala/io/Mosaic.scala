@@ -14,9 +14,10 @@ import com.rasterfoundry.datamodel.{
 }
 import doobie.implicits._
 import fs2.Stream
+import geotrellis.contrib.vlm.TargetRegion
 import geotrellis.raster.{Raster, io => _, _}
 import geotrellis.spark.tiling.LayoutLevel
-import geotrellis.spark.{io => _}
+import geotrellis.spark.{SpatialKey, io => _}
 import geotrellis.vector.{Extent, Projected}
 
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -50,33 +51,35 @@ object Mosaic extends RollbarNotifier {
     }
   }
 
-  def getMultiBandTileFromMosaic(z: Int, x: Int, y: Int, extent: Extent)(
-      md: MosaicDefinition): IO[Option[Raster[MultibandTile]]] =
-    md.sceneType match {
-      case Some(SceneType.COG) =>
-        (Cog.fetchMultiBandCogTile(md, z, x, y, extent) map { maybeResample(_) }).value
-      case Some(SceneType.Avro) =>
-        (Avro.fetchMultiBandAvroTile(md, z, x, y, extent) map {
-          maybeResample(_)
-        }).value
-      case None =>
-        throw UnknownSceneTypeException(
-          "Unable to fetch tiles with unknown scene type")
+  def getMultiBandTileFromMosaic(z: Int, x: Int, y: Int)(
+      md: MosaicDefinition): IO[Option[Raster[MultibandTile]]] = IO {
+    val rasterSource = md.ingestLocation map {
+      MosaicDefinitionRasterSource.getRasterSource(_)
+    } getOrElse {
+      throw UningestedScenesException(
+        s"Scene ${md.sceneId} has no ingest location")
     }
+    val extent = MosaicDefinitionRasterSource
+      .tmsLevels(z)
+      .mapTransform
+      .keyToExtent(SpatialKey(x, y))
+    val bands = Seq(md.colorCorrections.redBand,
+                    md.colorCorrections.greenBand,
+                    md.colorCorrections.blueBand)
+    rasterSource.read(extent, bands)
+  }
 
-  def getMosaicDefinitionTile(self: ProjectNode,
-                              z: Int,
-                              x: Int,
-                              y: Int,
-                              extent: Extent,
-                              md: MosaicDefinition): IO[Option[Raster[Tile]]] =
-    if (!self.isSingleBand) { getMultiBandTileFromMosaic(z, x, y, extent)(md) } else {
+  def getMosaicDefinitionTile(
+      self: ProjectNode,
+      z: Int,
+      x: Int,
+      y: Int,
+      extent: Extent,
+      md: MosaicDefinition): IO[Option[Raster[MultibandTile]]] =
+    if (!self.isSingleBand) { getMultiBandTileFromMosaic(z, x, y)(md) } else {
       logger.info(
         s"Getting Single Band Tile From Mosaic: ${z} ${x} ${y} ${self.projectId}")
       getSingleBandTileFromMosaic(
-        z,
-        x,
-        y,
         extent,
         self.singleBandOptions getOrElse {
           throw SingleBandOptionsException(
@@ -86,55 +89,38 @@ object Mosaic extends RollbarNotifier {
       )(md)
     }
 
-  def getSingleBandTileFromMosaic(z: Int,
-                                  x: Int,
-                                  y: Int,
-                                  extent: Extent,
+  def getSingleBandTileFromMosaic(extent: Extent,
                                   singleBandOptions: SingleBandOptions.Params,
                                   rawSingleBandValues: Boolean)(
-      md: MosaicDefinition): IO[Option[Raster[MultibandTile]]] =
-    md.sceneType match {
-      case Some(SceneType.COG) =>
-        (Cog
-          .fetchSingleBandCogTile(
-            md,
-            z,
-            x,
-            y,
-            extent,
-            singleBandOptions,
-            rawSingleBandValues) map { maybeResample(_) }).value
-      case Some(SceneType.Avro) =>
-        (Avro
-          .fetchSingleBandAvroTile(
-            md,
-            z,
-            x,
-            y,
-            extent,
-            singleBandOptions,
-            rawSingleBandValues) map { maybeResample(_) }).value
-      case None =>
-        throw UnknownSceneTypeException(
-          "Unable to fetch tiles with unknown scene type")
+      md: MosaicDefinition): IO[Option[Raster[MultibandTile]]] = {
+    IO {
+      val rasterSource = md.ingestLocation map {
+        MosaicDefinitionRasterSource.getRasterSource(_)
+      } getOrElse {
+        throw UningestedScenesException(
+          s"Scene ${md.sceneId} has no ingest location")
+      }
+      rasterSource.read(extent, Seq(singleBandOptions.band))
     }
+  }
 
   def getMosaicTileForExtent(
       extent: Extent,
       cellSize: CellSize,
       singleBandOptions: Option[SingleBandOptions.Params],
       singleBand: Boolean)(
-      md: MosaicDefinition): IO[Option[Raster[MultibandTile]]] = {
-    md.sceneType match {
-      case Some(SceneType.COG) =>
-        Cog.tileForExtent(extent, cellSize, singleBandOptions, singleBand, md)
-      case Some(SceneType.Avro) =>
-        Avro.tileForExtent(extent, cellSize, singleBandOptions, singleBand, md)
-      case None =>
-        throw UnknownSceneTypeException(
-          "Unable to fetch tiles with unknown scene type")
-    }
-  }
+      md: MosaicDefinition): IO[Option[Raster[MultibandTile]]] = ???
+  //   {
+  //   md.sceneType match {
+  //     case Some(SceneType.COG) =>
+  //       Cog.tileForExtent(extent, cellSize, singleBandOptions, singleBand, md)
+  //     case Some(SceneType.Avro) =>
+  //       Avro.tileForExtent(extent, cellSize, singleBandOptions, singleBand, md)
+  //     case None =>
+  //       throw UnknownSceneTypeException(
+  //         "Unable to fetch tiles with unknown scene type")
+  //   }
+  // }
 
   @inline def maybeResample(
       tile: Raster[MultibandTile]): Raster[MultibandTile] =

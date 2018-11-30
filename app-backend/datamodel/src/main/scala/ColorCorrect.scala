@@ -5,9 +5,10 @@ import io.circe.generic.JsonCodec
 import geotrellis.raster._
 import geotrellis.raster.equalization.HistogramEqualization
 import geotrellis.raster.histogram.Histogram
-import geotrellis.util.LazyLogging
 import org.apache.commons.math3.util.FastMath
 import spire.syntax.cfor._
+
+import com.typesafe.scalalogging.LazyLogging
 
 /**
   * Usage of Approximations.{pow | exp} functions can allow to speed up this function on 10 - 15ms.

@@ -49,7 +49,6 @@ lazy val commonSettings = Seq(
     Resolver.bintrayRepo("azavea", "geotrellis"),
     Resolver.bintrayRepo("lonelyplanet", "maven"),
     Resolver.bintrayRepo("guizmaii", "maven"),
-    Resolver.bintrayRepo("kwark", "maven"), // Required for Slick 3.1.1.2, see https://github.com/azavea/raster-foundry/pull/1576
     "locationtech-releases" at "https://repo.locationtech.org/content/groups/releases",
     "locationtech-snapshots" at "https://repo.locationtech.org/content/groups/snapshots",
     Resolver.bintrayRepo("naftoligug", "maven"),
@@ -514,8 +513,7 @@ lazy val backsplash = Project("backsplash", file("backsplash"))
       Dependencies.http4sBlazeClient,
       Dependencies.http4sCirce,
       Dependencies.http4sDSL,
-      Dependencies.http4sServer,
-      Dependencies.mamlJvm
+      Dependencies.http4sServer
     )
   })
   .settings(addCompilerPlugin("org.spire-math" %% "kind-projector" % "0.9.7"))
