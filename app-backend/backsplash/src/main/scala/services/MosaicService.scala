@@ -3,6 +3,7 @@ package com.rasterfoundry.backsplash.services
 import com.azavea.maml.error.Interpreted
 import com.azavea.maml.eval.BufferingInterpreter
 import com.rasterfoundry.authentication.Authentication
+import com.rasterfoundry.backsplash.Color
 import com.rasterfoundry.backsplash.error._
 import com.rasterfoundry.backsplash.io.{Histogram, MosaicDefinitionRasterSource}
 import com.rasterfoundry.backsplash.nodes.ProjectNode
@@ -101,7 +102,36 @@ class MosaicService(
               result <- getTileResult(project)
               resp <- result match {
                 case Valid(tile) =>
-                  Ok(tile.renderPng.bytes, `Content-Type`(MediaType.image.png))
+                  logger.info("Tile is valid wahoo great")
+                  if (project.isSingleBand) {
+                    logger.info("Project is single band great")
+                    project.singleBandOptions traverse { singleBandOptions =>
+                      logger.info(
+                        "Single band options was present things are going well")
+                      Histogram.getSingleBandProjectHistogram(
+                        project.id,
+                        None,
+                        singleBandOptions.band) map { hist =>
+                        Color
+                          .colorSingleBandTile(tile.bands(0),
+                                               hist,
+                                               singleBandOptions)
+                          .bytes
+                      }
+                    } flatMap { (bytesO: Option[Array[Byte]]) =>
+                      logger.info("got some bytes, wahoo, bytes")
+                      Ok(
+                        bytesO getOrElse {
+                          throw SingleBandOptionsException(
+                            s"Could not produce tile for project ${project.id}")
+                        },
+                        `Content-Type`(MediaType.image.png)
+                      )
+                    }
+                  } else {
+                    Ok(tile.renderPng.bytes,
+                       `Content-Type`(MediaType.image.png))
+                  }
                 case Invalid(e) =>
                   BadRequest(e.toString)
               }

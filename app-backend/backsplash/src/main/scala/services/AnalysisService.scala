@@ -12,6 +12,7 @@ import com.rasterfoundry.backsplash._
 import com.rasterfoundry.backsplash.error._
 import com.rasterfoundry.backsplash.maml.BacksplashMamlAdapter
 import com.rasterfoundry.backsplash.parameters.Parameters._
+import com.rasterfoundry.backsplash.render.Render
 import com.rasterfoundry.common.RollbarNotifier
 import com.rasterfoundry.datamodel.User
 import com.rasterfoundry.database.ToolRunDao
@@ -36,6 +37,8 @@ class AnalysisService(
   ForeignError: HttpErrorHandler[IO, Throwable])
     extends Http4sDsl[IO]
     with RollbarNotifier {
+
+  import Render._
 
   implicit val xa = RFTransactor.xa
 

@@ -12,6 +12,7 @@ import cats.effect._
 import cats.implicits._
 import com.olegpy.meow.hierarchy._
 import fs2._
+import org.gdal.gdal.gdalJNI
 import org.http4s._
 import org.http4s.server.Router
 import org.http4s.server.middleware.{CORS, CORSConfig}
@@ -23,6 +24,9 @@ import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 
 object BacksplashServer extends IOApp {
+
+  gdalJNI.SetConfigOption("CPS_DEBUG", "ON")
+  gdalJNI.SetConfigOption("CPL_LOG_ERRORS", "ON")
 
   implicit val backsplashErrorHandler
     : HttpErrorHandler[IO, BacksplashException] =

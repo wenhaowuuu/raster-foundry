@@ -6,15 +6,14 @@ import com.rasterfoundry.common.RollbarNotifier
 import com.rasterfoundry.datamodel.{ColorRampMosaic, SingleBandOptions}
 import geotrellis.raster.histogram._
 import geotrellis.raster.{Raster, io => _, _}
+import geotrellis.raster.render._
 import geotrellis.spark.{io => _}
 import geotrellis.vector.Extent
 
 object Color extends RollbarNotifier {
-  def colorSingleBandTile(
-      tile: Tile,
-      extent: Extent,
-      histogram: Histogram[Double],
-      singleBandOptions: SingleBandOptions.Params): Raster[MultibandTile] = {
+  def colorSingleBandTile(tile: Tile,
+                          histogram: Histogram[Double],
+                          singleBandOptions: SingleBandOptions.Params): Png = {
     logger.debug(s"Applying Colorings")
     val colorScheme = singleBandOptions.colorScheme
     val colorMap = (colorScheme.asArray,
@@ -40,7 +39,7 @@ object Color extends RollbarNotifier {
         throw SingleBandOptionsException(message)
       }
     }
-    Raster(MultibandTile(tile.color(colorMap)), extent)
+    tile.renderPng
   }
 
 }

@@ -82,7 +82,7 @@ object ColorRampMosaic extends LazyLogging {
     val (min, max) = hist.minMaxValues match {
       case Some((min, max)) =>
         (min, max)
-      case _ =>
+      case x =>
         val message = "Unable to get histogram min / max"
         logger.error(message)
         throw new IllegalArgumentException(message)

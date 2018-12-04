@@ -14,15 +14,22 @@ import com.rasterfoundry.datamodel.{
 }
 import doobie.implicits._
 import fs2.Stream
-import geotrellis.contrib.vlm.TargetRegion
+import geotrellis.contrib.vlm.{RasterSource, TargetRegion}
+import geotrellis.proj4.WebMercator
 import geotrellis.raster.{Raster, io => _, _}
 import geotrellis.spark.tiling.LayoutLevel
 import geotrellis.spark.{SpatialKey, io => _}
 import geotrellis.vector.{Extent, Projected}
 
+import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 
+import java.util.UUID
+
 object Mosaic extends RollbarNotifier {
+
+  var rasterSourceCache: mutable.Map[UUID, RasterSource] =
+    mutable.Map.empty
 
   import com.rasterfoundry.database.util.RFTransactor.xa
 
@@ -52,21 +59,31 @@ object Mosaic extends RollbarNotifier {
   }
 
   def getMultiBandTileFromMosaic(z: Int, x: Int, y: Int)(
-      md: MosaicDefinition): IO[Option[Raster[MultibandTile]]] = IO {
-    val rasterSource = md.ingestLocation map {
-      MosaicDefinitionRasterSource.getRasterSource(_)
-    } getOrElse {
-      throw UningestedScenesException(
-        s"Scene ${md.sceneId} has no ingest location")
+      md: MosaicDefinition): IO[Option[MultibandTile]] = IO {
+    val rasterSource = Mosaic.synchronized {
+      rasterSourceCache.getOrElseUpdate(
+        md.sceneId,
+        (md.ingestLocation.map {
+          MosaicDefinitionRasterSource.getRasterSource(_)
+        } getOrElse {
+          throw UningestedScenesException(
+            s"Scene ${md.sceneId} has no ingest location")
+        }).reproject(WebMercator)
+      )
     }
     val extent = MosaicDefinitionRasterSource
       .tmsLevels(z)
       .mapTransform
       .keyToExtent(SpatialKey(x, y))
+    logger.debug(s"Got extent: $extent")
     val bands = Seq(md.colorCorrections.redBand,
                     md.colorCorrections.greenBand,
                     md.colorCorrections.blueBand)
-    rasterSource.read(extent, bands)
+    rasterSource.read(extent, bands) map { raster =>
+      md.colorCorrections
+        .copy(redBand = 0, greenBand = 1, blueBand = 2)
+        .colorCorrect(raster.tile, raster.tile.histogramDouble, None)
+    }
   }
 
   def getMosaicDefinitionTile(
@@ -76,7 +93,11 @@ object Mosaic extends RollbarNotifier {
       y: Int,
       extent: Extent,
       md: MosaicDefinition): IO[Option[Raster[MultibandTile]]] =
-    if (!self.isSingleBand) { getMultiBandTileFromMosaic(z, x, y)(md) } else {
+    if (!self.isSingleBand) {
+      getMultiBandTileFromMosaic(z, x, y)(md) map { optionTile =>
+        optionTile map { Raster(_, extent) }
+      }
+    } else {
       logger.info(
         s"Getting Single Band Tile From Mosaic: ${z} ${x} ${y} ${self.projectId}")
       getSingleBandTileFromMosaic(

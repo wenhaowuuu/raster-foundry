@@ -68,7 +68,9 @@ object ProjectNode extends RollbarNotifier with HistogramJsonFormats {
               Mosaic.getMosaicDefinitionTile(self, z, x, y, extent, md)
             }
           } yield { mbTile })
-            .collect({ case Some(i) => i })
+            .collect({
+              case Some(i) => i
+            })
             .compile
             .fold(emptyTile)(
               (t1: MultibandTile, raster: Raster[MultibandTile]) => {
