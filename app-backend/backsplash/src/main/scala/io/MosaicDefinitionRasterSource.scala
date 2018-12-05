@@ -14,10 +14,13 @@ object MosaicDefinitionRasterSource
     extends RasterSourceUtils
     with RollbarNotifier {
   def getRasterSource(uri: String): GDALBaseRasterSource =
-    GDALRasterSource(URLDecoder.decode(uri))
+    GDALRasterSource(
+      URLDecoder.decode(
+        "s3://test.objects/fdb6e403-0603-4c25-b767-85f189bdbcdd_COG.tif"))
 
   def getRasterExtents(uri: String): IO[NEL[RasterExtent]] = IO {
-    val rs = getRasterSource(URLDecoder.decode(uri))
+    val rs = getRasterSource(
+      URLDecoder.decode("s3://fdb6e403-0603-4c25-b767-85f189bdbcdd_COG.tif"))
     val dataset = rs.dataset
     val band = dataset.GetRasterBand(1)
 

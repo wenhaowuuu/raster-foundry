@@ -8,6 +8,7 @@ import com.rasterfoundry.backsplash.nodes.ProjectNode
 import com.rasterfoundry.common.RollbarNotifier
 import com.rasterfoundry.database.SceneToProjectDao
 import com.rasterfoundry.datamodel.{
+  ColorCorrect,
   MosaicDefinition,
   SceneType,
   SingleBandOptions
@@ -37,30 +38,39 @@ object Mosaic extends RollbarNotifier {
 
   def getMosaicDefinitions(self: ProjectNode,
                            extent: Extent): Stream[IO, MosaicDefinition] = {
-    self.getBandOverrides match {
-      case Some((red, green, blue)) =>
-        SceneToProjectDao
-          .getMosaicDefinition(
-            self.projectId,
-            Some(Projected(extent, 3857)),
-            Some(red),
-            Some(green),
-            Some(blue)
-          )
-          .transact(xa)
-      case None =>
-        SceneToProjectDao
-          .getMosaicDefinition(
-            self.projectId,
-            Some(Projected(extent, 3857))
-          )
-          .transact(xa)
+    Stream.eval {
+      IO {
+        MosaicDefinition(
+          UUID.randomUUID,
+          ColorCorrect.paramsFromBandSpecOnly(4, 3, 2),
+          Some(SceneType.COG),
+          Some("s3://fdb6e403-0603-4c25-b767-85f189bdbcdd_COG.tif"))
+      }
     }
+    // self.getBandOverrides match {
+    //   case Some((red, green, blue)) =>
+    //     SceneToProjectDao
+    //       .getMosaicDefinition(
+    //         self.projectId,
+    //         Some(Projected(extent, 3857)),
+    //         Some(red),
+    //         Some(green),
+    //         Some(blue)
+    //       )
+    //       .transact(xa)
+    //   case None =>
+    //     SceneToProjectDao
+    //       .getMosaicDefinition(
+    //         self.projectId,
+    //         Some(Projected(extent, 3857))
+    //       )
+    //       .transact(xa)
+    // }
   }
 
   def getMultiBandTileFromMosaic(z: Int, x: Int, y: Int)(
       md: MosaicDefinition): IO[Option[MultibandTile]] = IO {
-    val rasterSource = Mosaic.synchronized {
+    val rasterSource = AnyRef.synchronized {
       rasterSourceCache.getOrElseUpdate(
         md.sceneId,
         (md.ingestLocation.map {

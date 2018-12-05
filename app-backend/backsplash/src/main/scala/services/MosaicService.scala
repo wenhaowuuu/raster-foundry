@@ -58,80 +58,83 @@ class MosaicService(
                 :? BlueBandOptionalQueryParamMatcher(blueOverride)
                 :? TagOptionalQueryParamMatcher(tag) as user =>
             val authorizationF =
-              ProjectDao
-                .authorized(user,
-                            ObjectType.Project,
-                            projectId,
-                            ActionType.View)
-                .transact(xa) map { authResult =>
-                if (!authResult)
-                  throw NotAuthorizedException(
-                    s"User ${user.id} not authorized to view project $projectId")
-                else
-                  authResult
-              }
+              IO { true }
+            // ProjectDao
+            //   .authorized(user,
+            //               ObjectType.Project,
+            //               projectId,
+            //               ActionType.View)
+            //   .transact(xa) map { authResult =>
+            //   if (!authResult)
+            //     throw NotAuthorizedException(
+            //       s"User ${user.id} not authorized to view project $projectId")
+            //   else
+            //     authResult
+            // }
 
-            def getTileResult(
-                project: Project): IO[Interpreted[MultibandTile]] = {
+            // def getTileResult(
+            //     project: Project): IO[Interpreted[MultibandTile]] = {
+            def getTileResult(): IO[Interpreted[MultibandTile]] = {
               val projectNode =
-                (redOverride, greenOverride, blueOverride).tupled match {
-                  case Some((red: Int, green: Int, blue: Int)) =>
-                    ProjectNode(projectId,
-                                Some(red),
-                                Some(green),
-                                Some(blue),
-                                project.isSingleBand,
-                                project.singleBandOptions,
-                                false)
-                  case _ =>
-                    ProjectNode(projectId,
-                                None,
-                                None,
-                                None,
-                                project.isSingleBand,
-                                project.singleBandOptions,
-                                false)
-                }
+                // (redOverride, greenOverride, blueOverride).tupled match {
+                ProjectNode(projectId, None, None, None, false, None, false)
+              // case Some((red: Int, green: Int, blue: Int)) =>
+              //   ProjectNode(projectId,
+              //               Some(red),
+              //               Some(green),
+              //               Some(blue),
+              //               project.isSingleBand,
+              //               project.singleBandOptions,
+              //               false)
+              // case _ =>
+              //   ProjectNode(projectId,
+              //               None,
+              //               None,
+              //               None,
+              //               project.isSingleBand,
+              //               project.singleBandOptions,
+              //               false)
+              // }
               val eval = LayerTms.identity[ProjectNode](projectNode)
               eval(z, x, y)
             }
 
             for {
               authed <- authorizationF
-              project <- ProjectDao.unsafeGetProjectById(projectId).transact(xa)
-              result <- getTileResult(project)
+              // project <- ProjectDao.unsafeGetProjectById(projectId).transact(xa)
+              // result <- getTileResult(project)
+              result <- getTileResult
               resp <- result match {
                 case Valid(tile) =>
                   logger.info("Tile is valid wahoo great")
-                  if (project.isSingleBand) {
-                    logger.info("Project is single band great")
-                    project.singleBandOptions traverse { singleBandOptions =>
-                      logger.info(
-                        "Single band options was present things are going well")
-                      Histogram.getSingleBandProjectHistogram(
-                        project.id,
-                        None,
-                        singleBandOptions.band) map { hist =>
-                        Color
-                          .colorSingleBandTile(tile.bands(0),
-                                               hist,
-                                               singleBandOptions)
-                          .bytes
-                      }
-                    } flatMap { (bytesO: Option[Array[Byte]]) =>
-                      logger.info("got some bytes, wahoo, bytes")
-                      Ok(
-                        bytesO getOrElse {
-                          throw SingleBandOptionsException(
-                            s"Could not produce tile for project ${project.id}")
-                        },
-                        `Content-Type`(MediaType.image.png)
-                      )
-                    }
-                  } else {
-                    Ok(tile.renderPng.bytes,
-                       `Content-Type`(MediaType.image.png))
-                  }
+                  // if (project.isSingleBand) {
+                  //   logger.info("Project is single band great")
+                  //   project.singleBandOptions traverse { singleBandOptions =>
+                  //     logger.info(
+                  //       "Single band options was present things are going well")
+                  //     Histogram.getSingleBandProjectHistogram(
+                  //       project.id,
+                  //       None,
+                  //       singleBandOptions.band) map { hist =>
+                  //       Color
+                  //         .colorSingleBandTile(tile.bands(0),
+                  //                              hist,
+                  //                              singleBandOptions)
+                  //         .bytes
+                  //     }
+                  //   } flatMap { (bytesO: Option[Array[Byte]]) =>
+                  //     logger.info("got some bytes, wahoo, bytes")
+                  //     Ok(
+                  //       bytesO getOrElse {
+                  //         throw SingleBandOptionsException(
+                  //           s"Could not produce tile for project ${project.id}")
+                  //       },
+                  //       `Content-Type`(MediaType.image.png)
+                  //     )
+                  //   }
+                  // } else {
+                  Ok(tile.renderPng.bytes, `Content-Type`(MediaType.image.png))
+                // }
                 case Invalid(e) =>
                   BadRequest(e.toString)
               }
